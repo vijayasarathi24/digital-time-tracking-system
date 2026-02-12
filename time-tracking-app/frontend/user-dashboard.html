@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Dashboard</title>
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+    </style>
+</head>
+
+<body class="bg-[#f8fafc] text-slate-800 min-h-screen">
+
+    <nav
+        class="bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-center sticky top-0 z-50 shadow-sm">
+        <div class="flex flex-col">
+            <h1 class="text-2xl font-black text-indigo-600 tracking-tight">User Dashboard</h1>
+            <p id="user-welcome" class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Session
+                Overview</p>
+        </div>
+        <div class="flex items-center space-x-10">
+            <a href="/report"
+                class="text-xs font-black text-slate-500 hover:text-indigo-600 uppercase tracking-widest transition-colors">
+                Reports</a>
+            <button id="logout-btn"
+                class="text-xs font-black text-slate-500 hover:text-rose-600 uppercase tracking-widest transition-colors">Logout</button>
+        </div>
+    </nav>
+
+    <div class="container mx-auto px-6 py-8">
+
+        <!-- TIMER & PROJECT SECTION (SPLIT LAYOUT) -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+
+            <!-- LEFT: Current Task & Timer -->
+            <div
+                class="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl text-center flex flex-col justify-center">
+                <h2 class="text-slate-400 font-black mb-4 uppercase tracking-[0.2em] text-[10px]">
+                    Main Workflow
+                </h2>
+
+                <div id="timer-display" class="text-7xl font-black text-slate-900 mb-8 tabular-nums tracking-tighter">
+                    00:00:00
+                </div>
+
+                <div id="countdown-label" class="text-sm font-semibold text-purple-600 mb-6 hidden">
+                    Time Remaining
+                </div>
+
+                <textarea id="work-description" placeholder="Specify your current objective..."
+                    class="w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-slate-900 font-semibold mb-8 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none resize-none h-24 transition-all placeholder:text-slate-300"></textarea>
+
+                <div class="flex flex-wrap justify-center gap-4">
+                    <button id="btn-start"
+                        class="px-8 py-4 bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-green-200 transition-all active:scale-95">
+                        START SESSION
+                    </button>
+
+                    <button id="btn-pause"
+                        class="px-6 py-4 bg-amber-500 hover:bg-amber-400 text-white rounded-2xl font-bold text-lg hidden transition-all active:scale-95">
+                        PAUSE
+                    </button>
+
+                    <button id="btn-resume"
+                        class="px-6 py-4 bg-indigo-600 hover:bg-indigo-500 text-white rounded-2xl font-bold text-lg hidden transition-all active:scale-95">
+                        RESUME
+                    </button>
+
+                    <button id="btn-finish"
+                        class="px-8 py-4 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white rounded-2xl font-bold text-lg shadow-lg shadow-purple-200 hidden transition-all active:scale-95">
+                        FINISH WORK
+                    </button>
+
+                    <button id="btn-stop"
+                        class="px-6 py-4 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl font-bold text-lg hidden transition-all active:scale-95">
+                        STOP
+                    </button>
+                </div>
+            </div>
+
+            <!-- RIGHT: Project Configuration & Independent Countdown -->
+            <div class="bg-white p-8 rounded-3xl border border-slate-200 shadow-xl flex flex-col">
+                <h2 class="text-slate-400 font-black mb-8 uppercase tracking-[0.2em] text-[10px]">
+                    Project Configuration
+                </h2>
+
+                <div id="project-timer-display"
+                    class="text-6xl font-black text-indigo-600 mb-10 tabular-nums text-center tracking-tighter">
+                    00:00:00
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <label
+                            class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Project
+                            Identity</label>
+                        <input type="text" id="project-name" placeholder="Name your project"
+                            class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-bold text-slate-900 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none transition-all placeholder:text-slate-300">
+                    </div>
+
+                    <div>
+                        <label
+                            class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Objectives
+                            & Scope</label>
+                        <textarea id="project-description" placeholder="Outline the projects core goals..."
+                            class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-semibold text-slate-900 placeholder:text-slate-300 focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none transition-all resize-none h-24"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label
+                                class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Hours
+                                Allocation</label>
+                            <input type="number" id="estimated-hours" placeholder="00" min="0"
+                                class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-900 text-center focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none transition-all placeholder:text-slate-300">
+                        </div>
+                        <div>
+                            <label
+                                class="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2 block">Minutes
+                                Allocation</label>
+                            <input type="number" id="estimated-minutes" placeholder="00" min="0" max="59"
+                                class="w-full px-5 py-3.5 bg-slate-50 border border-slate-200 rounded-2xl font-black text-slate-900 text-center focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 focus:outline-none transition-all placeholder:text-slate-300">
+                        </div>
+                    </div>
+
+                    <button id="btn-project-start"
+                        class="w-full py-5 bg-indigo-600 hover:bg-slate-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-indigo-100 transition-all active:scale-95">
+                        INITIALIZE PROJECT
+                    </button>
+
+                    <button id="btn-project-stop"
+                        class="w-full py-5 bg-rose-600 hover:bg-slate-900 text-white rounded-3xl font-black text-xs uppercase tracking-[0.2em] shadow-xl shadow-rose-100 hidden transition-all active:scale-95">
+                        TERMINATE PROJECT
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- RECENT ACTIVITY -->
+        <div>
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-2xl font-bold">Recent Activity</h2>
+
+                <button onclick="loadUserReports('day')"
+                    class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">
+                    Refresh
+                </button>
+            </div>
+
+            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-gray-200 bg-gray-50">
+                    <span class="text-gray-500">Today Total Hours: </span>
+                    <span id="period-total" class="font-bold text-gray-800 text-lg ml-2">
+                        0.00
+                    </span>
+                </div>
+
+                <table class="w-full text-left">
+                    <thead class="bg-gray-100 text-gray-600">
+                        <tr>
+                            <th class="px-6 py-3">Date</th>
+                            <th class="px-6 py-3">Description</th>
+                            <th class="px-6 py-3">Start Time</th>
+                            <th class="px-6 py-3">End Time</th>
+                            <th class="px-6 py-3 text-right">Duration</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logs-list" class="divide-y divide-gray-200"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- PROFESSIONAL ANALYTICS SECTION -->
+        <div class="mt-12">
+
+            <!-- KPI CARDS -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+
+                <div
+                    class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-md">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total Hours Logged
+                    </p>
+                    <h3 id="weekly-total" class="text-3xl font-black text-indigo-600 tracking-tight">0.00 hrs</h3>
+                </div>
+
+                <div
+                    class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-md">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Daily Average
+                        Efficiency</p>
+                    <h3 id="weekly-avg" class="text-3xl font-black text-slate-900 tracking-tight">0.00 hrs</h3>
+                </div>
+
+                <div
+                    class="bg-white p-7 rounded-3xl border border-slate-200 shadow-sm transition-all duration-300 hover:shadow-md">
+                    <p class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Peak Productivity
+                        Day</p>
+                    <h3 id="best-day" class="text-xl font-black text-slate-900 tracking-tight">-</h3>
+                </div>
+
+            </div>
+
+            <!-- CHART -->
+            <div class="bg-white p-8 rounded-2xl border border-gray-200 shadow-sm">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">
+                    Productivity Analytics
+                </h2>
+
+                <div class="h-[350px]">
+                    <canvas id="activityChart"></canvas>
+                </div>
+            </div>
+
+        </div>
+
+    </div>
+
+    <script src="app.js"></script>
+
+    <script>
+        let activityChart;
+
+        if (window.location.pathname.includes('/user')) {
+            checkAuth().then(user => {
+                document.getElementById('user-welcome').textContent =
+                    `Welcome, ${user.name}`;
+                initTimer();
+                loadUserReports('day');
+                loadWeeklyGraph();
+            });
+        }
+
+        async function loadWeeklyGraph() {
+            try {
+                const data = await apiCall('/user/reports?filter=week');
+
+                const grouped = {};
+
+                data.logs.forEach(log => {
+                    const date = new Date(log.log_date).toLocaleDateString('en-IN', {
+                        weekday: 'short'
+                    });
+                    const hours = log.total_seconds / 3600;
+
+                    if (!grouped[date]) grouped[date] = 0;
+                    grouped[date] += hours;
+                });
+
+                const dayOrder = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+                const labels = dayOrder.filter(d => grouped[d] !== undefined || true); // Show all days
+                const values = labels.map(l => grouped[l] || 0);
+
+                const total = values.reduce((a, b) => a + b, 0);
+                const avg = total / (values.length || 1);
+                const maxHours = Math.max(...values, 1);
+                const bestIndex = values.indexOf(Math.max(...values));
+
+                document.getElementById('weekly-total').textContent = total.toFixed(2) + " hrs";
+                document.getElementById('weekly-avg').textContent = avg.toFixed(2) + " hrs";
+                document.getElementById('best-day').textContent = labels[bestIndex] + " (" + values[bestIndex].toFixed(2) + " hrs)";
+
+                const ctx = document.getElementById('activityChart').getContext('2d');
+                if (activityChart) activityChart.destroy();
+
+                const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+                gradient.addColorStop(0, 'rgba(139, 92, 246, 0.5)'); // Indigo/Purple
+                gradient.addColorStop(1, 'rgba(139, 92, 246, 0)');
+
+                activityChart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'Hours Worked',
+                            data: values,
+                            borderColor: '#8b5cf6',
+                            backgroundColor: gradient,
+                            borderWidth: 4,
+                            tension: 0.4,
+                            fill: true,
+                            pointRadius: 6,
+                            pointHoverRadius: 9,
+                            pointBackgroundColor: '#fff',
+                            pointBorderColor: '#8b5cf6',
+                            pointBorderWidth: 2,
+                            pointHoverBackgroundColor: '#8b5cf6',
+                            pointHoverBorderColor: '#fff',
+                            pointHoverBorderWidth: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        interaction: { intersect: false, mode: 'index' },
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: 'rgba(17, 24, 39, 0.9)',
+                                titleFont: { size: 14, weight: 'bold' },
+                                bodyFont: { size: 14 },
+                                padding: 12,
+                                cornerRadius: 12,
+                                displayColors: false,
+                                callbacks: {
+                                    label: context => `Focus Time: ${context.raw.toFixed(2)} hours`
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                grid: { display: false },
+                                ticks: { font: { weight: 'bold' }, color: '#6b7280' }
+                            },
+                            y: {
+                                beginAtZero: true,
+                                grid: { color: 'rgba(229, 231, 235, 0.5)', drawBorder: false },
+                                ticks: {
+                                    stepSize: 2,
+                                    color: '#6b7280',
+                                    callback: val => val + 'h'
+                                }
+                            }
+                        }
+                    }
+                });
+
+            } catch (err) {
+                console.error(err);
+            }
+        }
+    </script>
+
+</body>
+
+</html>
