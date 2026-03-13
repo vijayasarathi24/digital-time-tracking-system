@@ -27,8 +27,20 @@ app.use('/api/admin', require('./routes/admin.routes'));
 app.use('/api/user', require('./routes/user.routes'));
 
 // Serve Frontend Pages with Clean URLs
+app.get('/admin/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/admin-login.html'));
+});
+
+app.get('/user/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/user-login.html'));
+});
+
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+    res.redirect('/user/login');
+});
+
+app.get('/register', (req, res) => {
+    res.sendFile(path.join(__dirname, '../frontend/register.html'));
 });
 
 app.get('/admin', (req, res) => {
@@ -43,9 +55,9 @@ app.get('/report', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/user-report.html'));
 });
 
-// Default route (root) serves login
+// Default route (root) serves User Login page
 app.get('/', (req, res) => {
-    res.redirect('/login');
+    res.sendFile(path.join(__dirname, '../frontend/user-login.html'));
 });
 
 const server = app.listen(PORT, () => {

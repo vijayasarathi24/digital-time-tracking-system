@@ -6,63 +6,171 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'Arial', 'Helvetica', 'sans-serif'],
+                        serif: ['Cambria', 'Times New Roman', 'serif'],
+                    },
+                    boxShadow: {
+                        'premium': '0 20px 50px -12px rgba(0, 0, 0, 0.15)',
+                        'premium-dark': '0 20px 50px -12px rgba(0, 0, 0, 0.5)',
+                    }
+                }
+            }
+        }
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <link href="https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css" rel="stylesheet">
     <style>
         body {
-            font-family: 'Inter', sans-serif;
+            font-family: 'Arial', 'Inter', sans-serif;
+        }
+
+        /* Dropdown animation */
+        #profile-dropdown {
+            animation: fadeInDown 0.2s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Profile button hover effect */
+        #profile-btn:hover {
+            transform: scale(1.05);
+        }
+
+        #profile-btn:active {
+            transform: scale(0.95);
         }
     </style>
+    <script src="/app.js" defer></script>
 </head>
 
-<body class="bg-gray-100 text-gray-800 min-h-screen">
+<body
+    class="bg-gray-100 dark:bg-slate-900 text-gray-800 dark:text-slate-200 min-h-screen transition-colors duration-300">
 
-    <nav class="bg-white border-b border-slate-200 px-8 py-5 flex justify-between items-center shadow-sm">
+    <nav
+        class="bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-8 py-5 flex justify-between items-center shadow-sm transition-colors">
         <div class="flex flex-col">
-            <h1 class="text-2xl font-black text-slate-900 tracking-tight">Admin Dashboard</h1>
-            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Control Center & System
-                Analytics</p>
+            <h1 class="text-3xl font-black bg-gradient-to-br from-indigo-600 to-violet-600 bg-clip-text text-transparent dark:from-indigo-400 dark:to-violet-400 tracking-tighter">Admin Dashboard</h1>
+            <p class="text-sm font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-widest mt-1 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                </svg>
+                Control Center
+            </p>
         </div>
-        <button id="logout-btn"
-            class="text-xs font-black text-slate-500 hover:text-rose-600 uppercase tracking-widest transition-colors">Logout
-        </button>
+        <div class="flex items-center space-x-6">
+            <!-- Theme Toggle Button -->
+            <button onclick="toggleTheme()"
+                class="p-2 rounded-xl bg-gray-100 dark:bg-slate-700 hover:scale-110 transition-all active:scale-95">
+                <svg xmlns="http://www.w3.org/2000/svg"
+                    class="w-5 h-5 text-slate-700 dark:text-yellow-400 block dark:hidden" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                </svg>
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-yellow-400 hidden dark:block" fill="none"
+                    viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+            </button>
+            <!-- Profile Dropdown -->
+            <div class="relative">
+                <button id="profile-btn"
+                    class="flex items-center space-x-2 p-2 rounded-xl bg-gray-100 dark:bg-slate-700 hover:bg-gray-200 dark:hover:bg-slate-600 transition-all">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-slate-700 dark:text-slate-300" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-slate-500 dark:text-slate-400" fill="none"
+                        viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
+                <div id="profile-dropdown"
+                    class="absolute right-0 mt-2 w-48 bg-white dark:bg-slate-800 rounded-lg shadow-lg border border-gray-200 dark:border-slate-700 hidden z-50">
+                    <button onclick="openResetPasswordModal()"
+                        class="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-t-lg transition-colors flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                        <span>Reset Password</span>
+                    </button>
+                    <button id="logout-btn"
+                        class="w-full text-left px-4 py-3 text-sm text-gray-700 dark:text-slate-300 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-b-lg transition-colors flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                            stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </div>
+        </div>
     </nav>
 
     <div class="container mx-auto px-6 py-8">
 
         <!-- Stats Section -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-10">
-            <div class="bg-white p-8 rounded-3xl border border-slate-200/60 shadow-sm transition-hover hover:shadow-md">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Total System Users
+            <div
+                class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-200/50 dark:border-slate-700/50 shadow-premium dark:shadow-premium-dark transition-all hover:scale-[1.01]">
+                <h3 class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2">
+                    Total System Users
                 </h3>
-                <p id="total-users" class="text-4xl font-black text-slate-900 tracking-tighter">-</p>
+                <p id="total-users"
+                    class="text-4xl font-black text-slate-900 dark:text-white tracking-tighter drop-shadow-sm">-</p>
             </div>
-            <div class="bg-white p-8 rounded-3xl border border-slate-200/60 shadow-sm transition-hover hover:shadow-md">
-                <h3 class="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] mb-2">Cumulative Hours
-                    Logged</h3>
-                <p id="total-hours" class="text-4xl font-black text-indigo-600 tracking-tighter">-</p>
+            <div
+                class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl p-8 rounded-[2.5rem] border border-slate-200/50 dark:border-slate-700/50 shadow-premium dark:shadow-premium-dark transition-all hover:scale-[1.01]">
+                <h3 class="text-[10px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-[0.2em] mb-2">
+                    Cumulative Hours Logged</h3>
+                <p id="total-hours"
+                    class="text-4xl font-black text-indigo-600 dark:text-indigo-400 tracking-tighter drop-shadow-sm">-
+                </p>
             </div>
         </div>
 
         <div class="mb-12">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">User Directory</h2>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">User Directory</h2>
                 <button onclick="document.getElementById('add-user-modal').classList.remove('hidden')"
-                    class="px-4 py-2 bg-green-600 hover:bg-green-500 text-white rounded-lg text-sm font-semibold">
-                    + Add User
+                    class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-sm font-bold uppercase tracking-widest shadow-lg shadow-indigo-500/20 transition-all active:scale-95">
+                    <i class='bx bx-user-plus mr-2'></i>Add System User
                 </button>
             </div>
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div
+                class="bg-white/80 dark:bg-slate-800/80 backdrop-blur-xl rounded-3xl border border-slate-200/50 dark:border-slate-700/50 shadow-premium dark:shadow-premium-dark overflow-hidden transition-all">
                 <table class="w-full text-left">
-                    <thead class="bg-gray-100 text-gray-600">
+                    <thead class="bg-slate-50 dark:bg-slate-900/50 text-slate-500 dark:text-slate-400">
                         <tr>
-                            <th class="px-6 py-3">ID</th>
-                            <th class="px-6 py-3">Name</th>
-                            <th class="px-6 py-3">Username</th>
-                            <th class="px-6 py-3">Email</th>
-                            <th class="px-6 py-3 text-right">Actions</th>
+                            <th class="px-6 py-4 text-xs font-bold uppercase tracking-widest">ID</th>
+                            <th class="px-6 py-4 text-xs font-bold uppercase tracking-widest">Name</th>
+                            <th class="px-6 py-4 text-xs font-bold uppercase tracking-widest">Username</th>
+                            <th class="px-6 py-4 text-xs font-bold uppercase tracking-widest">Email</th>
+                            <th class="px-6 py-4 text-xs font-bold uppercase tracking-widest text-right">Actions
+                            </th>
                         </tr>
                     </thead>
-                    <tbody id="user-list" class="divide-y divide-gray-200">
+                    <tbody id="user-list" class="divide-y divide-slate-100 dark:divide-slate-700/50">
                     </tbody>
                 </table>
             </div>
@@ -71,25 +179,26 @@
         <!-- Reports Section -->
         <div>
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-black text-slate-900 tracking-tight">Aggregated Reports</h2>
+                <h2 class="text-2xl font-black text-slate-900 dark:text-white tracking-tight">Aggregated Reports</h2>
                 <div class="space-x-2">
                     <button onclick="loadAdminReports('day')"
-                        class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">Day</button>
+                        class="px-3 py-1 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 rounded text-sm text-gray-700 dark:text-slate-200 transition-colors">Day</button>
                     <button onclick="loadAdminReports('week')"
-                        class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">Week</button>
+                        class="px-3 py-1 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 rounded text-sm text-gray-700 dark:text-slate-200 transition-colors">Week</button>
                     <button onclick="loadAdminReports('month')"
-                        class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded text-sm">Month</button>
+                        class="px-3 py-1 bg-gray-200 dark:bg-slate-700 hover:bg-gray-300 dark:hover:bg-slate-600 rounded text-sm text-gray-700 dark:text-slate-200 transition-colors">Month</button>
                 </div>
             </div>
-            <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div
+                class="bg-white dark:bg-slate-800 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm overflow-hidden transition-colors">
                 <table class="w-full text-left">
-                    <thead class="bg-gray-100 text-gray-600">
+                    <thead class="bg-gray-100 dark:bg-slate-700 text-gray-600 dark:text-slate-300">
                         <tr>
                             <th class="px-6 py-3">User</th>
                             <th class="px-6 py-3">Total Worked Hours</th>
                         </tr>
                     </thead>
-                    <tbody id="report-list" class="divide-y divide-gray-200">
+                    <tbody id="report-list" class="divide-y divide-gray-200 dark:divide-slate-700">
                     </tbody>
                 </table>
             </div>
@@ -98,22 +207,28 @@
     </div>
 
     <!-- Add User Modal -->
-    <div id="add-user-modal" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center hidden">
-        <div class="bg-white p-8 rounded-xl w-full max-w-md border border-gray-200 shadow-lg relative">
+    <div id="add-user-modal"
+        class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center hidden z-[60]">
+        <div
+            class="bg-white dark:bg-slate-800 p-8 rounded-xl w-full max-w-md border border-gray-200 dark:border-slate-700 shadow-lg relative transition-colors">
             <button onclick="document.getElementById('add-user-modal').classList.add('hidden')"
-                class="absolute top-4 right-4 text-gray-500 hover:text-black">✕</button>
-            <h2 class="text-xl font-bold mb-4">Add New User</h2>
+                class="absolute top-4 right-4 text-gray-500 hover:text-black dark:text-slate-400 dark:hover:text-white">✕</button>
+            <h2 class="text-xl font-bold mb-4 dark:text-white">Add New User</h2>
             <form id="add-user-form" class="space-y-4">
                 <input type="text" id="new-name" placeholder="Full Name"
-                    class="w-full px-4 py-2 bg-gray-100 rounded border border-gray-300" required>
+                    class="w-full px-4 py-2 bg-gray-100 dark:bg-slate-700 rounded border border-gray-300 dark:border-slate-600 text-slate-900 dark:text-white"
+                    required>
                 <input type="email" id="new-email" placeholder="Email"
-                    class="w-full px-4 py-2 bg-gray-100 rounded border border-gray-300" required>
+                    class="w-full px-4 py-2 bg-gray-100 dark:bg-slate-700 rounded border border-gray-300 dark:border-slate-600 text-slate-900 dark:text-white"
+                    required>
                 <input type="text" id="new-user-username" placeholder="Username"
-                    class="w-full px-4 py-2 bg-gray-100 rounded border border-gray-300" required>
+                    class="w-full px-4 py-2 bg-gray-100 dark:bg-slate-700 rounded border border-gray-300 dark:border-slate-600 text-slate-900 dark:text-white"
+                    required>
                 <input type="password" id="new-user-password" placeholder="Password"
-                    class="w-full px-4 py-2 bg-gray-100 rounded border border-gray-300" required>
+                    class="w-full px-4 py-2 bg-gray-100 dark:bg-slate-700 rounded border border-gray-300 dark:border-slate-600 text-slate-900 dark:text-white"
+                    required>
                 <button type="submit"
-                    class="w-full py-2 bg-blue-600 hover:bg-blue-500 text-white rounded font-semibold">
+                    class="w-full py-2 bg-blue-600 dark:bg-indigo-600 hover:bg-blue-500 dark:hover:bg-indigo-500 text-white rounded font-semibold transition-colors">
                     Create User
                 </button>
             </form>
@@ -121,31 +236,41 @@
     </div>
 
     <!-- Change Password Modal -->
-    <div id="change-pass-modal" class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center hidden">
-        <div class="bg-white p-8 rounded-xl w-full max-w-md border border-gray-200 shadow-lg relative">
+    <div id="change-pass-modal"
+        class="fixed inset-0 bg-black bg-opacity-40 flex justify-center items-center hidden z-[60]">
+        <div
+            class="bg-white dark:bg-slate-800 p-8 rounded-xl w-full max-w-md border border-gray-200 dark:border-slate-700 shadow-lg relative transition-colors">
             <button onclick="document.getElementById('change-pass-modal').classList.add('hidden')"
-                class="absolute top-4 right-4 text-gray-500 hover:text-black">✕</button>
-            <h2 class="text-xl font-bold mb-4">Reset Password</h2>
-            <p id="reset-user-name" class="text-gray-500 text-sm mb-4"></p>
-            <form id="reset-pass-form" class="space-y-4">
-                <input type="hidden" id="reset-user-id">
-                <input type="password" id="reset-new-password" placeholder="New Password"
-                    class="w-full px-4 py-2 bg-gray-100 rounded border border-gray-300" required>
-                <button type="submit" class="w-full py-2 bg-red-600 hover:bg-red-500 text-white rounded font-semibold">
+                class="absolute top-4 right-4 text-gray-500 hover:text-black dark:text-slate-400 dark:hover:text-white">✕</button>
+            <h2 class="text-xl font-bold mb-4 dark:text-white">Reset Admin Password</h2>
+            <form id="change-pass-form" class="space-y-4">
+                <div>
+                    <label for="current-password" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Current Password</label>
+                    <input type="password" id="current-password" placeholder="Enter current password"
+                        class="w-full px-4 py-2 bg-gray-100 dark:bg-slate-700 rounded border border-gray-300 dark:border-slate-600 text-slate-900 dark:text-white"
+                        required>
+                </div>
+                <div>
+                    <label for="new-password" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">New Password</label>
+                    <input type="password" id="new-password" placeholder="Enter new password"
+                        class="w-full px-4 py-2 bg-gray-100 dark:bg-slate-700 rounded border border-gray-300 dark:border-slate-600 text-slate-900 dark:text-white"
+                        required minlength="6">
+                </div>
+                <div>
+                    <label for="confirm-password" class="block text-sm font-medium text-gray-700 dark:text-slate-300 mb-1">Confirm New Password</label>
+                    <input type="password" id="confirm-password" placeholder="Confirm new password"
+                        class="w-full px-4 py-2 bg-gray-100 dark:bg-slate-700 rounded border border-gray-300 dark:border-slate-600 text-slate-900 dark:text-white"
+                        required minlength="6">
+                </div>
+                <div id="change-pass-error" class="text-red-500 text-sm hidden"></div>
+                <button type="submit"
+                    class="w-full py-2 bg-indigo-600 dark:bg-indigo-600 hover:bg-indigo-500 dark:hover:bg-indigo-500 text-white rounded font-semibold transition-colors">
                     Reset Password
                 </button>
             </form>
         </div>
     </div>
 
-    <script src="app.js"></script>
-    <script>
-        if (window.location.pathname.includes('/admin')) {
-            loadDashboardStats();
-            loadUsers();
-            loadAdminReports('day');
-        }
-    </script>
 </body>
 
 </html>

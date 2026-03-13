@@ -44,7 +44,7 @@ exports.createUser = async (req, res) => {
     const adminId = req.session.user.id; // Get current admin ID from session
     try {
         const hash = await bcrypt.hash(password, 10);
-        await db.execute('INSERT INTO users (name, email, username, password_hash, admin_id) VALUES (?, ?, ?, ?, ?)', [name, email, username, hash, adminId]);
+        await db.execute('INSERT INTO users (name, email, username, pass_word, admin_id) VALUES (?, ?, ?, ?, ?)', [name, email, username, hash, adminId]);
         res.status(201).json({ message: 'User created successfully' });
     } catch (err) {
         console.error(err);
@@ -80,10 +80,10 @@ exports.deleteUser = async (req, res) => {
 };
 
 exports.resetUserPassword = async (req, res) => {
-    const { newPassword } = req.body;
+    const { password } = req.body;
     try {
-        const hash = await bcrypt.hash(newPassword, 10);
-        await db.execute('UPDATE users SET password_hash = ? WHERE id = ?', [hash, req.params.id]);
+        const hash = await bcrypt.hash(password, 10);
+        await db.execute('UPDATE users SET pass_word = ? WHERE id = ?', [hash, req.params.id]);
         res.json({ message: 'Password reset successfully' });
     } catch (err) {
         console.error(err);
@@ -92,9 +92,19 @@ exports.resetUserPassword = async (req, res) => {
 };
 
 exports.changePassword = async (req, res) => {
-    const { currentPassword, newPassword } = req.body;
+    const { currentPassword, newPassword, confirmPassword } = req.body;
     const adminId = req.session.user.id;
     try {
+        // Validate new password length
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'New password must be at least 6 characters long' });
+        }
+
+        // Check if new password and confirm password match
+        if (newPassword !== confirmPassword) {
+            return res.status(400).json({ error: 'New password and confirmation do not match' });
+        }
+
         const [admins] = await db.execute('SELECT * FROM admins WHERE id = ?', [adminId]);
         const admin = admins[0];
         const match = await bcrypt.compare(currentPassword, admin.password_hash);

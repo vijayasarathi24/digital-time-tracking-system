@@ -1,124 +1,149 @@
+/**
+ * Digital Time Tracking System - Core Frontend Logic
+ * Refactored for Robustness and Performance.
+ */
+
+class TimerManager {
+    constructor() {
+        this.generalTimer = { interval: null, seconds: 0, isRunning: false, active: false };
+        this.projectTimer = { interval: null, seconds: 0, isRunning: false, active: false, initialGoal: 0 };
+    }
+
+    startTick(type, callback) {
+        this.stopTick(type);
+        const timer = type === 'general' ? this.generalTimer : this.projectTimer;
+        
+        timer.interval = setInterval(() => {
+            if (type === 'general') {
+                timer.seconds++;
+            } else {
+                timer.seconds = Math.max(0, timer.seconds - 1);
+                if (timer.seconds === 0) {
+                    this.stopTick(type);
+                    // Trigger auto-end check via callback or refresh
+                }
+            }
+            callback(timer.seconds);
+        }, 1000);
+    }
+
+    stopTick(type) {
+        const timer = type === 'general' ? this.generalTimer : this.projectTimer;
+        if (timer.interval) {
+            clearInterval(timer.interval);
+            timer.interval = null;
+        }
+    }
+
+    reset(type) {
+        this.stopTick(type);
+        const timer = type === 'general' ? this.generalTimer : this.projectTimer;
+        timer.seconds = 0;
+        timer.isRunning = false;
+        timer.active = false;
+    }
+}
+
+const timerManager = new TimerManager();
+
+// --- Configuration & State ---
 const API_BASE = '/api';
 
-// --- Utility Functions ---
-
-function formatTime(seconds) {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = Math.floor(seconds % 60);
-    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+// --- Theme Management (Execute immediately to prevent flicker) ---
+if (localStorage.getItem('theme') === 'dark' || 
+    (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+    document.documentElement.classList.add('dark');
 }
 
-async function apiCall(endpoint, method = 'GET', body = null) {
-    const options = {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-    };
-    if (body) options.body = JSON.stringify(body);
-
-    const res = await fetch(`${API_BASE}${endpoint}`, options);
-    if (res.status === 401 && !window.location.pathname.includes('login')) {
-        window.location.href = '/login'; // Redirect to landing if unauthorized
-        return null; // Stop processing
+function toggleTheme() {
+    if (document.documentElement.classList.contains('dark')) {
+        document.documentElement.classList.remove('dark');
+        localStorage.setItem('theme', 'light');
+    } else {
+        document.documentElement.classList.add('dark');
+        localStorage.setItem('theme', 'dark');
     }
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Something went wrong');
-    return data;
 }
 
-// --- Auth Logic ---
+// --- Initialization ---
+document.addEventListener('DOMContentLoaded', async () => {
+    const path = window.location.pathname;
+    const isAuthPage = path.includes('login') || path.includes('register') || path === '/';
+    
+    if (isAuthPage) {
+        setupAuthPageListeners();
+        return;
+    }
 
-// Check Auth on Dashboard Load
+    try {
+        await checkAuth();
+        await initDashboard();
+        setupEventListeners();
+        
+        // Polling for sync (on user dashboard only)
+        if (path === '/user') {
+            setInterval(syncState, 30000); 
+        }
+    } catch (err) {
+        console.error("Init Error:", err);
+    }
+});
+
 async function checkAuth() {
     try {
-        const data = await apiCall('/auth/session');
-        if (!data || !data.user) throw new Error('Not authenticated');
-        return data.user;
+        const res = await fetch(`${API_BASE}/auth/session`);
+        if (!res.ok) {
+             window.location.href = '/user/login';
+             return;
+        }
+        const data = await res.json();
+        const userNameElem = document.getElementById('userName');
+        if (userNameElem) userNameElem.textContent = data.user.name || data.user.username;
     } catch (err) {
-        window.location.href = '/login';
+        console.error("Auth Check Failed:", err);
+        window.location.href = '/user/login';
     }
 }
 
-// --- Unified Login Handler ---
-const unifiedLoginForm = document.getElementById('unified-login-form');
+async function initDashboard() {
+    const path = window.location.pathname;
+    if (path.includes('/admin')) {
+        await Promise.all([
+            loadDashboardStats(),
+            loadUsers(),
+            loadAdminReports('day')
+        ]);
+        setupAdminUIHandlers();
+    } else if (path === '/user') {
+        await Promise.all([
+            syncState(),
+            loadRecentActivities(),
+            loadTodayAverage()
+        ]);
+    } else if (path === '/report') {
+        // Report page handles its own specific data loading
+        // But we still want shared UI handlers like theme
+    }
+}
 
-if (unifiedLoginForm) {
-    unifiedLoginForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
+function setupAdminUIHandlers() {
+    // Profile dropdown toggle
+    document.getElementById('profile-btn')?.addEventListener('click', () => {
+        document.getElementById('profile-dropdown')?.classList.toggle('hidden');
+    });
 
-        const username = document.getElementById('username').value;
-        const password = document.getElementById('password').value;
-        const errorMsg = document.getElementById('error-msg');
-        const loginBtn = document.getElementById('login-btn');
-
-        // Reset UI State
-        errorMsg.classList.add('hidden');
-        loginBtn.disabled = true;
-        loginBtn.textContent = "Authenticating...";
-
-        try {
-            const data = await apiCall('/auth/login', 'POST', { username, password });
-            if (data.role === 'admin') {
-                window.location.href = '/admin';
-            } else {
-                window.location.href = '/user';
-            }
-        } catch (finalErr) {
-            // Display error in the unified UI
-            errorMsg.textContent = finalErr.message;
-            errorMsg.classList.remove('hidden');
-            loginBtn.disabled = false;
-            loginBtn.textContent = "Login to Dashboard";
+    // Close dropdown when clicking outside
+    document.addEventListener('click', (event) => {
+        const profileBtn = document.getElementById('profile-btn');
+        const dropdown = document.getElementById('profile-dropdown');
+        if (profileBtn && dropdown && !profileBtn.contains(event.target) && !dropdown.contains(event.target)) {
+            dropdown.classList.add('hidden');
         }
     });
-}
 
-// Logout
-const logoutBtn = document.getElementById('logout-btn');
-if (logoutBtn) {
-    logoutBtn.addEventListener('click', async () => {
-        await apiCall('/auth/logout', 'POST');
-        window.location.href = '/login';
-    });
-}
-
-// --- Admin Dashboard Logic ---
-
-async function loadDashboardStats() {
-    try {
-        const stats = await apiCall('/admin/dashboard');
-        document.getElementById('total-users').textContent = stats.totalUsers;
-        document.getElementById('total-hours').textContent = stats.totalHours.toFixed(2);
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-async function loadUsers() {
-    try {
-        const users = await apiCall('/admin/users');
-        const list = document.getElementById('user-list');
-        list.innerHTML = users.map(u => `
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-6 py-4 text-gray-900 font-medium">${u.id}</td>
-                <td class="px-6 py-4 text-gray-900 font-semibold">${u.name}</td>
-                <td class="px-6 py-4 text-gray-600">@${u.username}</td>
-                <td class="px-6 py-4 text-gray-600">${u.email}</td>
-                <td class="px-6 py-4 text-right space-x-2">
-                    <a href="/report?userId=${u.id}" class="text-green-600 hover:text-green-800 font-bold mr-2">View Report</a>
-                    <button onclick="openChangePassModal(${u.id}, '${u.name}')" class="text-indigo-600 hover:text-indigo-800 font-bold">Reset Pass</button>
-                    ${u.username !== 'admin' ? `<button onclick="deleteUser(${u.id})" class="text-rose-600 hover:text-rose-800 font-bold">Delete</button>` : ''}
-                </td>
-            </tr>
-        `).join('');
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-const addUserForm = document.getElementById('add-user-form');
-if (addUserForm) {
-    addUserForm.addEventListener('submit', async (e) => {
+    // Add User Form Listener
+    const addUserForm = document.getElementById('add-user-form');
+    addUserForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
         const name = document.getElementById('new-name').value;
         const email = document.getElementById('new-email').value;
@@ -127,18 +152,289 @@ if (addUserForm) {
 
         try {
             await apiCall('/admin/users', 'POST', { name, email, username, password });
+            alert('User created successfully!');
             document.getElementById('add-user-modal').classList.add('hidden');
             loadUsers();
             loadDashboardStats();
-            e.target.reset(); // Clear form
         } catch (err) {
             alert(err.message);
         }
     });
 }
 
-window.deleteUser = async (id) => {
-    if (!confirm('Are you sure you want to delete this user?')) return;
+function openResetPasswordModal() {
+    document.getElementById('profile-dropdown')?.classList.add('hidden');
+    document.getElementById('change-pass-modal')?.classList.remove('hidden');
+    document.getElementById('change-pass-error')?.classList.add('hidden');
+    document.getElementById('change-pass-form')?.reset();
+}
+
+// --- API Call Wrapper ---
+async function apiCall(endpoint, method = 'GET', body = null) {
+    const options = {
+        method,
+        headers: { 'Content-Type': 'application/json' }
+    };
+    if (body) options.body = JSON.stringify(body);
+    
+    const response = await fetch(`${API_BASE}${endpoint}`, options);
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || 'Action failed');
+    return data;
+}
+
+// --- Sync State ---
+async function syncState() {
+    try {
+        const status = await apiCall('/user/timer/status');
+        
+        // Handle General Timer
+        updateTimerUI('general', status.general || { active: false });
+        
+        // Handle Project Timer
+        updateTimerUI('project', status.project || { active: false });
+
+    } catch (err) {
+        console.error("Sync Error:", err);
+    }
+}
+
+function updateTimerUI(type, session) {
+    const tm = type === 'general' ? timerManager.generalTimer : timerManager.projectTimer;
+    const prefix = type === 'general' ? 'work' : 'proj';
+    
+    const descriptionElem = document.getElementById(`${prefix}ActiveDesc`);
+    const timeDisplay = document.getElementById(`${prefix}Timer`);
+    const startBtn = document.getElementById(`${prefix}StartBtn`);
+    const pauseBtn = document.getElementById(`${prefix}PauseBtn`);
+    const stopBtn = document.getElementById(`${prefix}StopBtn`);
+    
+    if (!session.active) {
+        timerManager.reset(type);
+        if (descriptionElem) descriptionElem.textContent = "No active session";
+        if (timeDisplay) timeDisplay.textContent = type === 'general' ? "00:00:00" : "00:00:00";
+        setButtonState(type, 'idle');
+        return;
+    }
+
+    tm.active = true;
+    tm.isRunning = session.isRunning;
+    
+    // Calculate accurate current seconds
+    if (type === 'general') {
+        let currentSeconds = session.totalSeconds;
+        if (session.isRunning && session.startTime) {
+            currentSeconds += Math.floor((Date.now() - new Date(session.startTime)) / 1000);
+        }
+        tm.seconds = currentSeconds;
+    } else {
+        // Countdown
+        let elapsed = session.totalSeconds || 0;
+        if (session.isRunning && session.startTime) {
+            elapsed += Math.floor((Date.now() - new Date(session.startTime)) / 1000);
+        }
+        tm.seconds = Math.max(0, (session.estimatedSeconds || 0) - elapsed);
+        if (tm.seconds === 0 && session.isRunning) {
+            // Force refresh to trigger auto-end
+            syncState();
+        }
+    }
+
+    if (descriptionElem) descriptionElem.textContent = session.workDescription || session.projectName;
+    if (timeDisplay) timeDisplay.textContent = formatTime(tm.seconds);
+
+    if (tm.isRunning) {
+        setButtonState(type, 'running');
+        timerManager.startTick(type, (s) => {
+            timeDisplay.textContent = formatTime(s);
+        });
+    } else {
+        setButtonState(type, 'paused');
+        timerManager.stopTick(type);
+    }
+}
+
+function setButtonState(type, state) {
+    const prefix = type === 'general' ? 'work' : 'proj';
+    const startBtn = document.getElementById(`${prefix}StartBtn`);
+    const pauseBtn = document.getElementById(`${prefix}PauseBtn`);
+    const stopBtn = document.getElementById(`${prefix}StopBtn`);
+    const inputs = document.querySelectorAll(`.${prefix}-input`);
+
+    if (state === 'idle') {
+        if (startBtn) startBtn.style.display = 'inline-flex';
+        if (pauseBtn) pauseBtn.style.display = 'none';
+        if (stopBtn) stopBtn.style.display = 'none';
+        inputs.forEach(i => i.disabled = false);
+    } else if (state === 'running') {
+        if (startBtn) startBtn.style.display = 'none';
+        if (pauseBtn) {
+            pauseBtn.style.display = 'inline-flex';
+            pauseBtn.innerHTML = `<i class='bx bx-pause-circle mr-2'></i>Pause`;
+        }
+        if (stopBtn) stopBtn.style.display = 'inline-flex';
+        inputs.forEach(i => i.disabled = true);
+    } else if (state === 'paused') {
+        if (startBtn) startBtn.style.display = 'none';
+        if (pauseBtn) {
+            pauseBtn.style.display = 'inline-flex';
+            pauseBtn.innerHTML = `<i class='bx bx-play-circle mr-2'></i>Resume`;
+        }
+        if (stopBtn) stopBtn.style.display = 'inline-flex';
+        inputs.forEach(i => i.disabled = true);
+    }
+}
+
+// --- Action Handlers ---
+async function handleAction(type, action) {
+    const tm = type === 'general' ? timerManager.generalTimer : timerManager.projectTimer;
+    const prefix = type === 'general' ? 'work' : 'proj';
+    
+    try {
+        if (action === 'start') {
+            const body = {};
+            if (type === 'general') {
+                body.work_description = document.getElementById('workDescInput').value;
+            } else {
+                body.project_name = document.getElementById('projNameInput').value;
+                body.project_description = document.getElementById('projDescInput').value;
+                body.estimated_seconds = (parseInt(document.getElementById('projHrs').value) || 0) * 3600 +
+                                       (parseInt(document.getElementById('projMins').value) || 0) * 60;
+            }
+            await apiCall('/user/timer/start', 'POST', body);
+        } else if (action === 'pause') {
+            if (tm.isRunning) {
+                await apiCall('/user/timer/pause', 'POST', { type });
+            } else {
+                await apiCall('/user/timer/resume', 'POST', { type });
+            }
+        } else if (action === 'stop') {
+            await apiCall('/user/timer/stop', 'POST', { type });
+        }
+        
+        // Immediate sync after action
+        await syncState();
+        loadRecentActivities();
+        loadTodayAverage();
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+// --- Load Content ---
+async function loadRecentActivities() {
+    try {
+        const logs = await apiCall('/user/recent-activities');
+        const container = document.getElementById('recentActivityList');
+        if (!container) return;
+        
+        let logsHtml = '';
+        logs.forEach(log => {
+            const status = (log.completion_status || 'finished').replace('_', ' ');
+            const statusColor = status.includes('in') 
+                ? 'text-blue-500 bg-blue-500/10 border-blue-500/20' 
+                : status.includes('not') 
+                    ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' 
+                    : 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
+            
+            const formatSessionTime = (d) => d ? new Date(d).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12: true}) : '-';
+            const startTimeStr = log.initial_start_time || log.start_time;
+            const timeRange = startTimeStr ? `${formatSessionTime(startTimeStr).toLowerCase()} - ${log.end_time ? formatSessionTime(log.end_time).toLowerCase() : '...'}` : '-';
+
+            logsHtml += `
+                <tr class="hover:bg-indigo-500/[0.02] transition-colors border-b border-slate-700/10 last:border-0 group">
+                    <td class="px-10 py-6 font-medium text-slate-500 text-base">${new Date(log.created_at || log.log_date).toLocaleDateString()}</td>
+                    <td class="px-10 py-6">
+                        <div class="font-bold text-slate-800 dark:text-white text-base">${log.project_name || 'General Work'}</div>
+                        <div class="text-xs text-slate-400 font-bold uppercase tracking-wider mt-1">${log.work_description || '-'}</div>
+                    </td>
+                    <td class="px-10 py-6 text-sm text-slate-500">${timeRange}</td>
+                    <td class="px-10 py-6 text-center">
+                        <span class="px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest border ${statusColor}">${status}</span>
+                    </td>
+                    <td class="px-10 py-6 text-right font-mono font-bold text-indigo-600 dark:text-indigo-400 text-lg tabular-nums">${log.time_spent}</td>
+                </tr>
+            `;
+        });
+        container.innerHTML = logs.length ? logsHtml : '<tr><td colspan="5" class="py-10 text-center text-slate-500 text-base">No recent activities</td></tr>';
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+async function loadTodayAverage() {
+    try {
+        const data = await apiCall('/user/today-average');
+        const avgElem = document.getElementById('todayAvg');
+        if (avgElem) avgElem.textContent = data.formatted;
+    } catch (err) {
+        console.error(err);
+    }
+}
+
+// --- Admin Dashboard Logic ---
+async function loadDashboardStats() {
+    try {
+        const data = await apiCall('/admin/dashboard');
+        const usersElem = document.getElementById('total-users');
+        const hoursElem = document.getElementById('total-hours');
+        if (usersElem) usersElem.textContent = data.totalUsers;
+        if (hoursElem) hoursElem.textContent = parseFloat(data.totalHours).toFixed(2);
+    } catch (err) {
+        console.error("Load Stats Error:", err);
+    }
+}
+
+async function loadUsers() {
+    try {
+        const users = await apiCall('/admin/users');
+        const container = document.getElementById('user-list');
+        if (!container) return;
+
+        let usersHtml = '';
+        users.forEach(user => {
+            usersHtml += `
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                    <td class="px-6 py-4 text-sm tabular">${user.id}</td>
+                    <td class="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">${user.name}</td>
+                    <td class="px-6 py-4 text-sm text-slate-500">${user.username}</td>
+                    <td class="px-6 py-4 text-sm text-slate-500">${user.email}</td>
+                    <td class="px-6 py-4 text-right">
+                        <button onclick="resetUserPassword(${user.id})" title="Reset Password" class="text-amber-500 hover:scale-110 transition-transform"><i class='bx bx-key text-lg'></i></button>
+                        <button onclick="deleteUser(${user.id})" title="Delete User" class="text-rose-500 hover:scale-110 transition-transform ml-4"><i class='bx bx-trash text-lg'></i></button>
+                    </td>
+                </tr>
+            `;
+        });
+        container.innerHTML = users.length ? usersHtml : '<tr><td colspan="5" class="p-4 text-center">No users found</td></tr>';
+    } catch (err) {
+        console.error("Load Users Error:", err);
+    }
+}
+
+async function loadAdminReports(filter = 'day') {
+    try {
+        const reports = await apiCall(`/admin/reports?filter=${filter}`);
+        const container = document.getElementById('report-list');
+        if (!container) return;
+
+        let reportsHtml = '';
+        reports.forEach(row => {
+            reportsHtml += `
+                <tr class="hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-colors">
+                    <td class="px-6 py-4 text-sm font-bold text-slate-900 dark:text-white">${row.name} (@${row.username})</td>
+                    <td class="px-6 py-4 text-sm font-mono font-bold text-indigo-600 dark:text-indigo-400">${row.total_hours} hrs</td>
+                </tr>
+            `;
+        });
+        container.innerHTML = reports.length ? reportsHtml : '<tr><td colspan="2" class="p-4 text-center">No data found</td></tr>';
+    } catch (err) {
+        console.error("Load Reports Error:", err);
+    }
+}
+
+async function deleteUser(id) {
+    if (!confirm('Are you sure you want to delete this user? All their logs will be removed.')) return;
     try {
         await apiCall(`/admin/users/${id}`, 'DELETE');
         loadUsers();
@@ -146,363 +442,176 @@ window.deleteUser = async (id) => {
     } catch (err) {
         alert(err.message);
     }
-};
+}
 
-window.openChangePassModal = (id, name) => {
-    document.getElementById('reset-user-id').value = id;
-    document.getElementById('reset-user-name').textContent = `Resetting password for: ${name}`;
-    document.getElementById('change-pass-modal').classList.remove('hidden');
-};
 
-const resetPassForm = document.getElementById('reset-pass-form');
-if (resetPassForm) {
-    resetPassForm.addEventListener('submit', async (e) => {
+async function resetUserPassword(id) {
+    const newPass = prompt('Enter new password for this user (minimum 6 characters):');
+    if (!newPass) return;
+    if (newPass.length < 6) return alert('Password too short');
+    
+    try {
+        await apiCall(`/admin/reset-user-password/${id}`, 'PUT', { password: newPass });
+        alert('User password has been reset successfully');
+    } catch (err) {
+        alert(err.message);
+    }
+}
+
+// --- Theme Management ---
+// toggleTheme moved to top to be available to early clicks
+
+// --- Auth Page Logic ---
+function setupAuthPageListeners() {
+    const loginForm = document.getElementById('user-login-form');
+    const adminForm = document.getElementById('admin-login-form');
+    const registerForm = document.getElementById('register-form');
+    const errorMsg = document.getElementById('error-msg');
+
+    loginForm?.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const id = document.getElementById('reset-user-id').value;
-        const newPassword = document.getElementById('reset-new-password').value;
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const submitBtn = document.getElementById('user-login-btn');
+        const originalText = submitBtn?.innerHTML;
 
         try {
-            await apiCall(`/admin/reset-user-password/${id}`, 'PUT', { newPassword });
-            document.getElementById('change-pass-modal').classList.add('hidden');
-            alert('Password reset successfully');
-            e.target.reset();
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin mr-2"></i>Verifying...';
+            }
+            const data = await apiCall('/auth/user/login', 'POST', { username, password });
+            submitBtn.innerHTML = '<i class="bx bx-check mr-2"></i>Login Successful';
+            window.location.href = '/user';
         } catch (err) {
-            alert(err.message);
-        }
-    });
-}
-
-
-window.loadAdminReports = async (filter) => {
-    try {
-        const reports = await apiCall(`/admin/reports?filter=${filter}`);
-        const list = document.getElementById('report-list');
-        list.innerHTML = reports.map(r => `
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-6 py-4">
-                    <div class="font-bold text-gray-900">${r.name}</div>
-                    <div class="text-gray-600 text-sm">@${r.username}</div>
-                </td>
-                <td class="px-6 py-4 font-mono text-lg font-bold text-indigo-600">${r.total_hours} hrs</td>
-            </tr>
-        `).join('');
-    } catch (err) {
-        console.error(err);
-    }
-};
-
-// --- User Dashboard Logic ---
-
-// --- Independent Timer States ---
-let taskInterval, projectInterval;
-let taskState = { active: false, startTime: null, baseSeconds: 0, isRunning: false };
-let projectState = { active: false, startTime: null, baseSeconds: 0, isRunning: false, estimatedSeconds: 0 };
-
-async function initTimer() {
-    try {
-        const status = await apiCall('/user/timer/status');
-
-        // Sync General Task
-        if (status.general.active) {
-            taskState = {
-                active: true,
-                baseSeconds: status.general.totalSeconds,
-                isRunning: status.general.isRunning,
-                startTime: status.general.startTime ? new Date(status.general.startTime) : null
-            };
-            document.getElementById('work-description').value = status.general.workDescription || '';
-        } else {
-            taskState.active = false;
-            taskState.isRunning = false;
-            taskState.startTime = null;
-            stopClientTimer(false);
-        }
-
-        // Sync Project Task
-        if (status.project.active) {
-            projectState = {
-                active: true,
-                baseSeconds: status.project.totalSeconds,
-                isRunning: status.project.isRunning,
-                startTime: status.project.startTime ? new Date(status.project.startTime) : null,
-                estimatedSeconds: status.project.estimatedSeconds || 0
-            };
-            document.getElementById('project-name').value = status.project.projectName || '';
-            document.getElementById('project-description').value = status.project.projectDescription || '';
-
-            const h = Math.floor(status.project.estimatedSeconds / 3600);
-            const m = Math.floor((status.project.estimatedSeconds % 3600) / 60);
-            document.getElementById('estimated-hours').value = h || '';
-            document.getElementById('estimated-minutes').value = m || '';
-        } else {
-            projectState.active = false;
-            projectState.isRunning = false;
-            projectState.startTime = null;
-            stopClientTimer(true);
-        }
-
-        updateTimerUI();
-
-        // Ensure intervals start if running
-        if (taskState.isRunning) startClientTimer(false);
-        if (projectState.isRunning) startClientTimer(true);
-
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-function startClientTimer(isProject = false) {
-    if (isProject) {
-        if (projectInterval) clearInterval(projectInterval);
-        projectInterval = setInterval(updateProjectDisplay, 1000);
-        updateProjectDisplay();
-    } else {
-        if (taskInterval) clearInterval(taskInterval);
-        taskInterval = setInterval(updateTaskDisplay, 1000);
-        updateTaskDisplay();
-    }
-}
-
-function stopClientTimer(isProject = false) {
-    if (isProject) {
-        clearInterval(projectInterval);
-        projectInterval = null;
-    } else {
-        clearInterval(taskInterval);
-        taskInterval = null;
-    }
-}
-
-function updateTaskDisplay() {
-    let currentSeconds = taskState.baseSeconds;
-    if (taskState.isRunning && taskState.startTime) {
-        const diff = Math.floor((new Date() - new Date(taskState.startTime)) / 1000);
-        currentSeconds += diff;
-    }
-    document.getElementById('timer-display').textContent = formatTime(currentSeconds);
-}
-
-function updateProjectDisplay() {
-    let currentSeconds = projectState.baseSeconds;
-    if (projectState.isRunning && projectState.startTime) {
-        const diff = Math.floor((new Date() - new Date(projectState.startTime)) / 1000);
-        currentSeconds += diff;
-    }
-
-    const display = document.getElementById('project-timer-display');
-    if (!display) return;
-
-    if (projectState.estimatedSeconds > 0) {
-        const remaining = Math.max(0, projectState.estimatedSeconds - currentSeconds);
-        display.textContent = formatTime(remaining);
-        if (remaining === 0 && projectState.isRunning) {
-            stopProjectAutomatically();
-        }
-    } else {
-        display.textContent = formatTime(currentSeconds);
-    }
-}
-
-async function stopProjectAutomatically() {
-    stopClientTimer(true);
-    try {
-        await apiCall('/user/timer/stop', 'POST', {
-            isProject: true,
-            work_description: "Project ended automatically: Time limit reached.",
-            completion_status: 'not_completed'
-        });
-        projectState.active = false;
-        projectState.isRunning = false;
-        updateTimerUI();
-        loadUserReports('day');
-        alert("Project session ended automatically: Time limit reached.");
-    } catch (err) {
-        console.error(err);
-    }
-}
-
-function updateTimerUI() {
-    // Task UI
-    const btnTaskStart = document.getElementById('btn-start');
-    const btnTaskPause = document.getElementById('btn-pause');
-    const btnTaskResume = document.getElementById('btn-resume');
-    const btnTaskFinish = document.getElementById('btn-finish');
-    const btnTaskStop = document.getElementById('btn-stop');
-    const taskDesc = document.getElementById('work-description');
-
-    [btnTaskStart, btnTaskPause, btnTaskResume, btnTaskFinish, btnTaskStop].forEach(b => b?.classList.add('hidden'));
-
-    if (!taskState.active) {
-        btnTaskStart?.classList.remove('hidden');
-        if (taskDesc) taskDesc.disabled = false;
-        document.getElementById('timer-display').textContent = "00:00:00";
-        stopClientTimer(false);
-    } else {
-        btnTaskFinish?.classList.remove('hidden');
-        btnTaskStop?.classList.remove('hidden');
-        if (taskDesc) taskDesc.disabled = true;
-        if (taskState.isRunning) {
-            btnTaskPause?.classList.remove('hidden');
-            startClientTimer(false);
-        } else {
-            btnTaskResume?.classList.remove('hidden');
-            stopClientTimer(false);
-            updateTaskDisplay();
-        }
-    }
-
-    // Project UI
-    const btnProjStart = document.getElementById('btn-project-start');
-    const btnProjStop = document.getElementById('btn-project-stop');
-    const projName = document.getElementById('project-name');
-    const projDesc = document.getElementById('project-description');
-    const projH = document.getElementById('estimated-hours');
-    const projM = document.getElementById('estimated-minutes');
-
-    btnProjStart?.classList.add('hidden');
-    btnProjStop?.classList.add('hidden');
-
-    if (!projectState.active) {
-        btnProjStart?.classList.remove('hidden');
-        [projName, projDesc, projH, projM].forEach(el => el && (el.disabled = false));
-        document.getElementById('project-timer-display').textContent = "00:00:00";
-        stopClientTimer(true);
-    } else {
-        btnProjStop?.classList.remove('hidden');
-        [projName, projDesc, projH, projM].forEach(el => el && (el.disabled = true));
-        if (projectState.isRunning) {
-            startClientTimer(true);
-        } else {
-            stopClientTimer(true);
-            updateProjectDisplay();
-        }
-    }
-}
-
-// Task Listeners
-if (document.getElementById('btn-start')) {
-    document.getElementById('btn-start').addEventListener('click', async () => {
-        const desc = document.getElementById('work-description').value;
-        try {
-            await apiCall('/user/timer/start', 'POST', { work_description: desc });
-            await initTimer();
-        } catch (err) { alert(err.message); }
-    });
-}
-if (document.getElementById('btn-pause')) {
-    document.getElementById('btn-pause').addEventListener('click', async () => {
-        try { await apiCall('/user/timer/pause', 'POST', { isProject: false }); await initTimer(); } catch (err) { alert(err.message); }
-    });
-}
-if (document.getElementById('btn-resume')) {
-    document.getElementById('btn-resume').addEventListener('click', async () => {
-        try { await apiCall('/user/timer/resume', 'POST', { isProject: false }); await initTimer(); } catch (err) { alert(err.message); }
-    });
-}
-if (document.getElementById('btn-finish')) {
-    document.getElementById('btn-finish').addEventListener('click', async () => {
-        const desc = document.getElementById('work-description').value;
-        try {
-            await apiCall('/user/timer/stop', 'POST', { isProject: false, work_description: desc, completion_status: 'finished' });
-            await initTimer();
-            loadUserReports('day');
-        } catch (err) { alert(err.message); }
-    });
-}
-if (document.getElementById('btn-stop')) {
-    document.getElementById('btn-stop').addEventListener('click', async () => {
-        const desc = document.getElementById('work-description').value;
-        try {
-            await apiCall('/user/timer/stop', 'POST', { isProject: false, work_description: desc, completion_status: 'not_completed' });
-            await initTimer();
-            loadUserReports('day');
-        } catch (err) { alert(err.message); }
-    });
-}
-
-// Project Listeners
-const btnProjStart = document.getElementById('btn-project-start');
-if (btnProjStart) {
-    btnProjStart.addEventListener('click', async () => {
-        const name = document.getElementById('project-name').value;
-        const desc = document.getElementById('project-description').value;
-        const h = parseInt(document.getElementById('estimated-hours').value) || 0;
-        const m = parseInt(document.getElementById('estimated-minutes').value) || 0;
-
-        if (!name) return alert("Please enter a project name.");
-
-        try {
-            await apiCall('/user/timer/start', 'POST', {
-                project_name: name,
-                project_description: desc,
-                estimated_seconds: (h * 3600) + (m * 60)
-            });
-            await initTimer();
-        } catch (err) { alert(err.message); }
-    });
-}
-const btnProjStop = document.getElementById('btn-project-stop');
-if (btnProjStop) {
-    btnProjStop.addEventListener('click', async () => {
-        try {
-            await apiCall('/user/timer/stop', 'POST', { isProject: true, completion_status: 'finished' });
-            await initTimer();
-            loadUserReports('day');
-        } catch (err) { alert(err.message); }
-    });
-}
-
-window.loadUserReports = async (filter) => {
-    try {
-        const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get('userId');
-        let endpoint = `/user/reports?filter=${filter}`;
-        if (userId) endpoint += `&userId=${userId}`;
-
-        const data = await apiCall(endpoint);
-
-        // Update Title if admin viewing user
-        const titleEl = document.getElementById('report-title');
-        if (titleEl && data.targetUserName) {
-            const urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.get('userId')) {
-                titleEl.textContent = `Activities: ${data.targetUserName}`;
-                titleEl.classList.add('text-indigo-600');
-            } else {
-                titleEl.textContent = "Your Activity";
-                titleEl.classList.remove('text-indigo-600');
+            if (errorMsg) {
+                errorMsg.textContent = err.message;
+                errorMsg.classList.remove('hidden');
+            }
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
             }
         }
+    });
 
-        const totalEl = document.getElementById('period-total');
-        if (totalEl) totalEl.textContent = data.totalHours;
+    adminForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const username = document.getElementById('username').value;
+        const password = document.getElementById('password').value;
+        const submitBtn = document.getElementById('admin-login-btn');
+        const originalText = submitBtn?.innerHTML;
 
-        const list = document.getElementById('logs-list');
-        list.innerHTML = data.logs.map(log => {
-            const statusColor = log.completion_status === 'finished' ? 'text-green-600' : (log.completion_status === 'not_completed' ? 'text-rose-600' : 'text-amber-600');
-            return `
-            <tr class="hover:bg-gray-50 transition-colors">
-                <td class="px-6 py-4 text-gray-700 font-medium">${new Date(log.log_date).toLocaleDateString()}</td>
-                <td class="px-6 py-4">
-                    <div class="font-bold text-gray-900">${log.project_name || 'Personal'}</div>
-                    <div class="text-xs text-gray-500">${log.work_description || '-'}</div>
-                </td>
-                <td class="px-6 py-4 text-gray-600 text-sm">
-                    ${log.initial_start_time ? new Date(log.initial_start_time).toLocaleTimeString() : '-'} - 
-                    ${log.end_time ? new Date(log.end_time).toLocaleTimeString() : '...'}
-                </td>
-                <td class="px-6 py-4 text-center">
-                    <span class="text-xs font-bold px-2 py-1 rounded-full bg-gray-100 ${statusColor} uppercase tracking-tighter">
-                        ${log.completion_status || 'in_progress'}
-                    </span>
-                </td>
-                <td class="px-6 py-4 text-right font-mono font-bold text-indigo-600">
-                    ${formatTime(log.live_total_seconds)}
-                </td>
-            </tr>
-        `}).join('');
+        try {
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin mr-2"></i>Logging in...';
+            }
+            const data = await apiCall('/auth/admin/login', 'POST', { username, password });
+            submitBtn.innerHTML = '<i class="bx bx-check mr-2"></i>Access Granted';
+            window.location.href = '/admin';
+        } catch (err) {
+            if (errorMsg) {
+                errorMsg.textContent = err.message;
+                errorMsg.classList.remove('hidden');
+            }
+            if (submitBtn) {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalText;
+            }
+        }
+    });
+
+    const adminChangePassForm = document.getElementById('change-pass-form');
+    adminChangePassForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const currentPassword = document.getElementById('current-password').value;
+        const newPassword = document.getElementById('new-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+        const errorEl = document.getElementById('change-pass-error');
+
+        if (newPassword !== confirmPassword) {
+            errorEl.textContent = 'New password and confirmation do not match';
+            errorEl.classList.remove('hidden');
+            return;
+        }
+
+        try {
+            await apiCall('/admin/change-password', 'PUT', { currentPassword, newPassword, confirmPassword });
+            alert('Password updated successfully!');
+            document.getElementById('change-pass-modal').classList.add('hidden');
+        } catch (err) {
+            errorEl.textContent = err.message;
+            errorEl.classList.remove('hidden');
+        }
+    });
+
+    registerForm?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const name = document.getElementById('fullname').value;
+        const email = document.getElementById('email').value;
+        const username = document.getElementById('reg-username').value;
+        const password = document.getElementById('reg-password').value;
+        const confirmPassword = document.getElementById('confirm-password').value;
+        const errorMsg = document.getElementById('reg-error-msg');
+
+        if (password !== confirmPassword) {
+            if (errorMsg) {
+                errorMsg.textContent = 'Passwords do not match';
+                errorMsg.classList.remove('hidden');
+            } else {
+                alert('Passwords do not match');
+            }
+            return;
+        }
+
+        try {
+            await apiCall('/auth/register', 'POST', { name, email, username, password });
+            alert('Registration successful! Please login.');
+            window.location.href = '/user/login';
+        } catch (err) {
+            if (errorMsg) {
+                errorMsg.textContent = err.message;
+                errorMsg.classList.remove('hidden');
+            } else {
+                alert(err.message);
+            }
+        }
+    });
+
+
+}
+
+// --- Event Listeners ---
+function setupEventListeners() {
+    // General Work Buttons
+    document.getElementById('workStartBtn')?.addEventListener('click', () => handleAction('general', 'start'));
+    document.getElementById('workPauseBtn')?.addEventListener('click', () => handleAction('general', 'pause'));
+    document.getElementById('workStopBtn')?.addEventListener('click', () => handleAction('general', 'stop'));
+
+    // Project Buttons
+    document.getElementById('projStartBtn')?.addEventListener('click', () => handleAction('project', 'start'));
+    document.getElementById('projPauseBtn')?.addEventListener('click', () => handleAction('project', 'pause'));
+    document.getElementById('projStopBtn')?.addEventListener('click', () => handleAction('project', 'stop'));
+
+    // Logout
+    document.getElementById('logoutBtn')?.addEventListener('click', logout);
+    document.getElementById('logout-btn')?.addEventListener('click', logout);
+}
+
+async function logout() {
+    try {
+        await apiCall('/auth/logout', 'POST');
+        window.location.href = '/user/login';
     } catch (err) {
-        console.error(err);
+        window.location.href = '/user/login';
     }
-};
+}
+
+// --- Utility ---
+function formatTime(s) {
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = s % 60;
+    return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
+}
