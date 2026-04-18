@@ -32,7 +32,7 @@ app.use('/api/user', require('./routes/user.routes'));
 
 // Serve Frontend Pages with Clean URLs
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/login.html'));
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 app.get('/admin/login', (req, res) => {
@@ -61,7 +61,7 @@ app.get('/report', (req, res) => {
 
 // Default route (root) serves Login page
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/login.html'));
+    res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
 const server = app.listen(PORT, () => {
