@@ -46,7 +46,7 @@ class TimerManager {
 const timerManager = new TimerManager();
 
 // --- Configuration & State ---
-const API_BASE = '/api';
+const API_BASE = 'https://digital-time-tracking-system.onrender.com/api';
 
 // --- Theme Management (Execute immediately to prevent flicker) ---
 if (localStorage.getItem('theme') === 'dark' || 
@@ -172,7 +172,8 @@ function openResetPasswordModal() {
 async function apiCall(endpoint, method = 'GET', body = null) {
     const options = {
         method,
-        headers: { 'Content-Type': 'application/json' }
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include'
     };
     if (body) options.body = JSON.stringify(body);
     
