@@ -12,7 +12,7 @@ class TimerManager {
     startTick(type, callback) {
         this.stopTick(type);
         const timer = type === 'general' ? this.generalTimer : this.projectTimer;
-        
+
         timer.interval = setInterval(() => {
             if (type === 'general') {
                 timer.seconds++;
@@ -46,10 +46,10 @@ class TimerManager {
 const timerManager = new TimerManager();
 
 // --- Configuration & State ---
-const API_BASE = 'https://digital-time-tracking-system.onrender.com/api';
+const API_BASE = 'https://digital-time-tracking-system.onrender.com';
 
 // --- Theme Management (Execute immediately to prevent flicker) ---
-if (localStorage.getItem('theme') === 'dark' || 
+if (localStorage.getItem('theme') === 'dark' ||
     (!localStorage.getItem('theme') && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
     document.documentElement.classList.add('dark');
 }
@@ -68,7 +68,7 @@ function toggleTheme() {
 document.addEventListener('DOMContentLoaded', async () => {
     const path = window.location.pathname;
     const isAuthPage = path.includes('login') || path.includes('register') || path === '/';
-    
+
     if (isAuthPage) {
         setupAuthPageListeners();
         return;
@@ -78,10 +78,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         await checkAuth();
         await initDashboard();
         setupEventListeners();
-        
+
         // Polling for sync (on user dashboard only)
         if (path === '/user') {
-            setInterval(syncState, 30000); 
+            setInterval(syncState, 30000);
         }
     } catch (err) {
         console.error("Init Error:", err);
@@ -92,8 +92,8 @@ async function checkAuth() {
     try {
         const res = await fetch(`${API_BASE}/auth/session`);
         if (!res.ok) {
-             window.location.href = '/login';
-             return;
+            window.location.href = '/login';
+            return;
         }
         const data = await res.json();
         const userNameElem = document.getElementById('userName');
@@ -176,7 +176,7 @@ async function apiCall(endpoint, method = 'GET', body = null) {
         credentials: 'include'
     };
     if (body) options.body = JSON.stringify(body);
-    
+
     const response = await fetch(`${API_BASE}${endpoint}`, options);
     const data = await response.json();
     if (!response.ok) throw new Error(data.error || 'Action failed');
@@ -187,10 +187,10 @@ async function apiCall(endpoint, method = 'GET', body = null) {
 async function syncState() {
     try {
         const status = await apiCall('/user/timer/status');
-        
+
         // Handle General Timer
         updateTimerUI('general', status.general || { active: false });
-        
+
         // Handle Project Timer
         updateTimerUI('project', status.project || { active: false });
 
@@ -202,13 +202,13 @@ async function syncState() {
 function updateTimerUI(type, session) {
     const tm = type === 'general' ? timerManager.generalTimer : timerManager.projectTimer;
     const prefix = type === 'general' ? 'work' : 'proj';
-    
+
     const descriptionElem = document.getElementById(`${prefix}ActiveDesc`);
     const timeDisplay = document.getElementById(`${prefix}Timer`);
     const startBtn = document.getElementById(`${prefix}StartBtn`);
     const pauseBtn = document.getElementById(`${prefix}PauseBtn`);
     const stopBtn = document.getElementById(`${prefix}StopBtn`);
-    
+
     if (!session.active) {
         timerManager.reset(type);
         if (descriptionElem) descriptionElem.textContent = "No active session";
@@ -219,7 +219,7 @@ function updateTimerUI(type, session) {
 
     tm.active = true;
     tm.isRunning = session.isRunning;
-    
+
     // Calculate accurate current seconds
     if (type === 'general') {
         let currentSeconds = session.totalSeconds;
@@ -290,7 +290,7 @@ function setButtonState(type, state) {
 async function handleAction(type, action) {
     const tm = type === 'general' ? timerManager.generalTimer : timerManager.projectTimer;
     const prefix = type === 'general' ? 'work' : 'proj';
-    
+
     try {
         if (action === 'start') {
             const body = {};
@@ -300,7 +300,7 @@ async function handleAction(type, action) {
                 body.project_name = document.getElementById('projNameInput').value;
                 body.project_description = document.getElementById('projDescInput').value;
                 body.estimated_seconds = (parseInt(document.getElementById('projHrs').value) || 0) * 3600 +
-                                       (parseInt(document.getElementById('projMins').value) || 0) * 60;
+                    (parseInt(document.getElementById('projMins').value) || 0) * 60;
             }
             await apiCall('/user/timer/start', 'POST', body);
         } else if (action === 'pause') {
@@ -312,7 +312,7 @@ async function handleAction(type, action) {
         } else if (action === 'stop') {
             await apiCall('/user/timer/stop', 'POST', { type });
         }
-        
+
         // Immediate sync after action
         await syncState();
         loadRecentActivities();
@@ -328,17 +328,17 @@ async function loadRecentActivities() {
         const logs = await apiCall('/user/recent-activities');
         const container = document.getElementById('recentActivityList');
         if (!container) return;
-        
+
         let logsHtml = '';
         logs.forEach(log => {
             const status = (log.completion_status || 'finished').replace('_', ' ');
-            const statusColor = status.includes('in') 
-                ? 'text-blue-500 bg-blue-500/10 border-blue-500/20' 
-                : status.includes('not') 
-                    ? 'text-amber-500 bg-amber-500/10 border-amber-500/20' 
+            const statusColor = status.includes('in')
+                ? 'text-blue-500 bg-blue-500/10 border-blue-500/20'
+                : status.includes('not')
+                    ? 'text-amber-500 bg-amber-500/10 border-amber-500/20'
                     : 'text-emerald-500 bg-emerald-500/10 border-emerald-500/20';
-            
-            const formatSessionTime = (d) => d ? new Date(d).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', hour12: true}) : '-';
+
+            const formatSessionTime = (d) => d ? new Date(d).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }) : '-';
             const startTimeStr = log.initial_start_time || log.start_time;
             const timeRange = startTimeStr ? `${formatSessionTime(startTimeStr).toLowerCase()} - ${log.end_time ? formatSessionTime(log.end_time).toLowerCase() : '...'}` : '-';
 
@@ -450,7 +450,7 @@ async function resetUserPassword(id) {
     const newPass = prompt('Enter new password for this user (minimum 6 characters):');
     if (!newPass) return;
     if (newPass.length < 6) return alert('Password too short');
-    
+
     try {
         await apiCall(`/admin/reset-user-password/${id}`, 'PUT', { password: newPass });
         alert('User password has been reset successfully');
