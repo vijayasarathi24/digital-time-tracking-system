@@ -67,7 +67,7 @@ function toggleTheme() {
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
     const path = window.location.pathname;
-    const isAuthPage = path.includes('login') || path.includes('register') || path === '/';
+    const isAuthPage = path.includes('index.html') || path.includes('register') || path === '/';
 
     if (isAuthPage) {
         setupAuthPageListeners();
@@ -92,7 +92,7 @@ async function checkAuth() {
     try {
         const res = await fetch(`${API_BASE}/auth/session`);
         if (!res.ok) {
-            window.location.href = '/login';
+            window.location.href = '/index.html';
             return;
         }
         const data = await res.json();
@@ -100,20 +100,20 @@ async function checkAuth() {
         if (userNameElem) userNameElem.textContent = data.user.name || data.user.username;
     } catch (err) {
         console.error("Auth Check Failed:", err);
-        window.location.href = '/login';
+        window.location.href = '/index.html';
     }
 }
 
 async function initDashboard() {
     const path = window.location.pathname;
-    if (path.includes('/admin')) {
+    if (path.includes('/admin-dashboard.html')) {
         await Promise.all([
             loadDashboardStats(),
             loadUsers(),
             loadAdminReports('day')
         ]);
         setupAdminUIHandlers();
-    } else if (path === '/user') {
+    } else if (path === '/user-dashboard.html') {
         await Promise.all([
             syncState(),
             loadRecentActivities(),
@@ -178,8 +178,20 @@ async function apiCall(endpoint, method = 'GET', body = null) {
     if (body) options.body = JSON.stringify(body);
 
     const response = await fetch(`${API_BASE}${endpoint}`, options);
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error || 'Action failed');
+
+    let data;
+    const text = await response.text();
+
+    try {
+        data = JSON.parse(text);
+    } catch {
+        throw new Error("Server returned invalid response");
+    }
+
+    if (!response.ok) {
+        throw new Error(data.error || "Server error");
+    }
+
     return data;
 }
 
@@ -481,16 +493,16 @@ function setupAuthPageListeners() {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin mr-2"></i>Verifying...';
             }
-            const data = await apiCall('/auth/user/login', 'POST', { username, password });
+            const data = await apiCall('/auth/login', 'POST', { username, password });
             submitBtn.innerHTML = '<i class="bx bx-check mr-2"></i>Login Successful';
             if (data.role === 'admin') {
-                window.location.href = '/admin';
+                window.location.href = '/admin-dashboard.html';
             } else {
-                window.location.href = '/user';
+                window.location.href = '/user-dashboard.html';
             }
         } catch (err) {
             if (errorMsg) {
-                errorMsg.textContent = err.message;
+                errorMsg.textContent = err.message || "Login failed";
                 errorMsg.classList.remove('hidden');
             }
             if (submitBtn) {
@@ -514,10 +526,10 @@ function setupAuthPageListeners() {
             }
             const data = await apiCall('/auth/admin/login', 'POST', { username, password });
             submitBtn.innerHTML = '<i class="bx bx-check mr-2"></i>Access Granted';
-            window.location.href = '/admin';
+            window.location.href = '/admin-dashboard.html';
         } catch (err) {
             if (errorMsg) {
-                errorMsg.textContent = err.message;
+                errorMsg.textContent = err.message || "Login failed";
                 errorMsg.classList.remove('hidden');
             }
             if (submitBtn) {
@@ -573,7 +585,7 @@ function setupAuthPageListeners() {
         try {
             await apiCall('/auth/register', 'POST', { name, email, username, password });
             alert('Registration successful! Please login.');
-            window.location.href = '/login';
+            window.location.href = '/index.html';
         } catch (err) {
             if (errorMsg) {
                 errorMsg.textContent = err.message;
@@ -607,9 +619,9 @@ function setupEventListeners() {
 async function logout() {
     try {
         await apiCall('/auth/logout', 'POST');
-        window.location.href = '/login';
+        window.location.href = '/index.html';
     } catch (err) {
-        window.location.href = '/login';
+        window.location.href = '/index.html';
     }
 }
 
