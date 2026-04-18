@@ -298,7 +298,7 @@ exports.getTodayAverage = async (req, res) => {
     const column = req.session.user.role === 'admin' ? 'admin_id' : 'user_id';
     try {
         const [resArr] = await db.query(
-            `SELECT AVG(total_seconds) as avgS FROM time_logs WHERE ${column} = ? AND log_date = CURDATE() AND end_time IS NOT NULL`, 
+            `SELECT AVG(GREATEST(0, total_seconds)) as avgS FROM time_logs WHERE ${column} = ? AND log_date = CURDATE() AND end_time IS NOT NULL`, 
             [userId]
         );
         const avg = Math.round(resArr[0].avgS || 0);
@@ -349,7 +349,9 @@ const checkAndAutoStopTimers = async (userId, column) => {
             [userId]
         );
         for (const log of active) {
-            const end = `${log.log_date.toISOString().split('T')[0]} 17:00:00`;
+            const d = new Date(log.log_date);
+            const dateStr = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+            const end = `${dateStr} 17:00:00`;
             await db.execute(
                 `UPDATE time_logs SET total_seconds = total_seconds + CASE WHEN start_time IS NOT NULL THEN GREATEST(0, TIMESTAMPDIFF(SECOND, start_time, ?)) ELSE 0 END, end_time = ?, completion_status = 'auto_ended', start_time = NULL WHERE id = ?`,
                 [end, end, log.id]
@@ -379,6 +381,7 @@ const checkAndAutoStopTimers = async (userId, column) => {
 };
 
 function formatTime(s) {
+    s = Math.max(0, s);
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     const sec = s % 60;

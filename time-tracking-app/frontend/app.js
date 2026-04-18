@@ -20,7 +20,6 @@ class TimerManager {
                 timer.seconds = Math.max(0, timer.seconds - 1);
                 if (timer.seconds === 0) {
                     this.stopTick(type);
-                    // Trigger auto-end check via callback or refresh
                 }
             }
             callback(timer.seconds);
@@ -93,7 +92,7 @@ async function checkAuth() {
     try {
         const res = await fetch(`${API_BASE}/auth/session`);
         if (!res.ok) {
-             window.location.href = '/user/login';
+             window.location.href = '/login';
              return;
         }
         const data = await res.json();
@@ -101,7 +100,7 @@ async function checkAuth() {
         if (userNameElem) userNameElem.textContent = data.user.name || data.user.username;
     } catch (err) {
         console.error("Auth Check Failed:", err);
-        window.location.href = '/user/login';
+        window.location.href = '/login';
     }
 }
 
@@ -224,14 +223,14 @@ function updateTimerUI(type, session) {
     if (type === 'general') {
         let currentSeconds = session.totalSeconds;
         if (session.isRunning && session.startTime) {
-            currentSeconds += Math.floor((Date.now() - new Date(session.startTime)) / 1000);
+            currentSeconds += Math.max(0, Math.floor((Date.now() - new Date(session.startTime)) / 1000));
         }
         tm.seconds = currentSeconds;
     } else {
         // Countdown
         let elapsed = session.totalSeconds || 0;
         if (session.isRunning && session.startTime) {
-            elapsed += Math.floor((Date.now() - new Date(session.startTime)) / 1000);
+            elapsed += Math.max(0, Math.floor((Date.now() - new Date(session.startTime)) / 1000));
         }
         tm.seconds = Math.max(0, (session.estimatedSeconds || 0) - elapsed);
         if (tm.seconds === 0 && session.isRunning) {
@@ -247,6 +246,7 @@ function updateTimerUI(type, session) {
         setButtonState(type, 'running');
         timerManager.startTick(type, (s) => {
             timeDisplay.textContent = formatTime(s);
+            if (type === 'project' && s === 0) syncState();
         });
     } else {
         setButtonState(type, 'paused');
@@ -482,7 +482,11 @@ function setupAuthPageListeners() {
             }
             const data = await apiCall('/auth/user/login', 'POST', { username, password });
             submitBtn.innerHTML = '<i class="bx bx-check mr-2"></i>Login Successful';
-            window.location.href = '/user';
+            if (data.role === 'admin') {
+                window.location.href = '/admin';
+            } else {
+                window.location.href = '/user';
+            }
         } catch (err) {
             if (errorMsg) {
                 errorMsg.textContent = err.message;
@@ -568,7 +572,7 @@ function setupAuthPageListeners() {
         try {
             await apiCall('/auth/register', 'POST', { name, email, username, password });
             alert('Registration successful! Please login.');
-            window.location.href = '/user/login';
+            window.location.href = '/login';
         } catch (err) {
             if (errorMsg) {
                 errorMsg.textContent = err.message;
@@ -602,14 +606,15 @@ function setupEventListeners() {
 async function logout() {
     try {
         await apiCall('/auth/logout', 'POST');
-        window.location.href = '/user/login';
+        window.location.href = '/login';
     } catch (err) {
-        window.location.href = '/user/login';
+        window.location.href = '/login';
     }
 }
 
 // --- Utility ---
 function formatTime(s) {
+    s = Math.max(0, s);
     const h = Math.floor(s / 3600);
     const m = Math.floor((s % 3600) / 60);
     const sec = s % 60;

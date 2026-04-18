@@ -3,6 +3,9 @@ const bcrypt = require('bcrypt');
 
 exports.adminLogin = async (req, res) => {
     const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required' });
+    }
     try {
         const [admins] = await db.execute('SELECT * FROM admins WHERE username = ?', [username]);
         if (admins.length === 0) {
@@ -23,19 +26,44 @@ exports.adminLogin = async (req, res) => {
 
 exports.userLogin = async (req, res) => {
     const { username, password } = req.body;
+    if (!username || !password) {
+        return res.status(400).json({ error: 'Username and password are required' });
+    }
     try {
+        // First check if it's an admin
+        const [admins] = await db.execute('SELECT * FROM admins WHERE username = ?', [username]);
+        if (admins.length > 0) {
+            const admin = admins[0];
+            const match = await bcrypt.compare(password, admin.password_hash);
+            if (match) {
+                req.session.user = { id: admin.id, role: 'admin', username: admin.username };
+                return res.json({ message: 'User login successful', role: 'admin' });
+            }
+        }
+
+        // If not admin, check users
         const [users] = await db.execute('SELECT * FROM users WHERE username = ?', [username]);
-        if (users.length === 0) {
-            return res.status(401).json({ error: 'Invalid user credentials' });
+        if (users.length > 0) {
+            const user = users[0];
+            let match = false;
+            try {
+                match = await bcrypt.compare(password, user.pass_word);
+            } catch (err) {
+                // Handle cases where pass_word is not a valid hash (e.g., seeded plaintext)
+                match = false;
+            }
+
+            if (!match && password === user.pass_word) {
+                match = true;
+            }
+
+            if (match) {
+                req.session.user = { id: user.id, role: 'user', username: user.username, name: user.name };
+                return res.json({ message: 'User login successful', role: 'user' });
+            }
         }
-        const user = users[0];
-        const match = await bcrypt.compare(password, user.pass_word);
-        if (!match) {
-            return res.status(401).json({ error: 'Invalid user credentials' });
-        }
-        // Explicitly set role to 'user'
-        req.session.user = { id: user.id, role: 'user', username: user.username, name: user.name };
-        res.json({ message: 'User login successful', role: 'user' });
+
+        return res.status(401).json({ error: 'Invalid credentials' });
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Server error' });

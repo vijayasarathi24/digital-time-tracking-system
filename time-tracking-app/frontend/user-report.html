@@ -436,7 +436,7 @@
 
         function updateKPI(data) {
             const sessions = data.logs.length;
-            const totalHours = parseFloat(data.totalHours || 0);
+            const totalHours = Math.max(0, parseFloat(data.totalHours || 0));
             const avg = sessions > 0 ? totalHours / sessions : 0;
             animateNumber('period-total', totalHours);
             animateNumber('total-sessions', sessions);
@@ -582,6 +582,7 @@
         }
 
         function animateNumber(id, val, suffix = '') {
+            val = Math.max(0, val);
             const el = document.getElementById(id);
             if (!el) return;
             const start = parseFloat(el.innerText) || 0;
