@@ -46,7 +46,7 @@ class TimerManager {
 const timerManager = new TimerManager();
 
 // --- Configuration & State ---
-const API_BASE = 'https://digital-time-tracking-system.onrender.com/api';
+const API_BASE = 'https://digital-time-tracking-system.onrender.com';
 
 // --- Theme Management (Execute immediately to prevent flicker) ---
 if (localStorage.getItem('theme') === 'dark' ||
@@ -493,7 +493,7 @@ function setupAuthPageListeners() {
                 submitBtn.disabled = true;
                 submitBtn.innerHTML = '<i class="bx bx-loader-alt bx-spin mr-2"></i>Verifying...';
             }
-            const data = await apiCall('/auth/login', 'POST', { username, password });
+            const data = await apiCall('/auth/user/login', 'POST', { username, password });
             submitBtn.innerHTML = '<i class="bx bx-check mr-2"></i>Login Successful';
             if (data.role === 'admin') {
                 window.location.href = '/admin-dashboard.html';
