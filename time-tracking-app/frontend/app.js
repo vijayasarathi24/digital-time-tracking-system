@@ -46,7 +46,7 @@ class TimerManager {
 const timerManager = new TimerManager();
 
 // --- Configuration & State ---
-const API_BASE = 'https://digital-time-tracking-system.onrender.com';
+const API_BASE = 'https://digital-time-tracking-system.onrender.com/api';
 
 // --- Theme Management (Execute immediately to prevent flicker) ---
 if (localStorage.getItem('theme') === 'dark' ||
