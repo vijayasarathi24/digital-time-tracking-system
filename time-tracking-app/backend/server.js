@@ -9,7 +9,10 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.set('trust proxy', 1);
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ 
+    origin: process.env.NODE_ENV === 'production' ? true : 'http://localhost:3000', 
+    credentials: true 
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../frontend')));
@@ -22,37 +25,29 @@ app.use(session({
     cookie: { 
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        sameSite: 'none'
-    }  
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+    }
 }));
 
 // Routes
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/admin', require('./routes/admin.routes'));
-app.use('/api/user', require('./routes/user.routes'));
+app.use('/auth', require('./routes/auth.routes'));
+app.use('/admin', require('./routes/admin.routes'));
+app.use('/user', require('./routes/user.routes'));
 
-// Serve Frontend Pages with Clean URLs
+// --- Clean URL Routing ---
 app.get('/login', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
-});
-
-app.get('/admin/login', (req, res) => {
-    res.redirect('/login');
-});
-
-app.get('/user/login', (req, res) => {
-    res.redirect('/login');
 });
 
 app.get('/register', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/register.html'));
 });
 
-app.get('/admin', (req, res) => {
+app.get('/administrator', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/admin-dashboard.html'));
 });
 
-app.get('/user', (req, res) => {
+app.get('/dashboard', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/user-dashboard.html'));
 });
 
@@ -60,18 +55,34 @@ app.get('/report', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/user-report.html'));
 });
 
-// Default route (root) serves Login page
+// Middleware to remove .html from URLs
+app.use((req, res, next) => {
+    if (req.path.endsWith('.html')) {
+        const newPath = req.path.slice(0, -5);
+        return res.redirect(301, newPath);
+    }
+    next();
+});
+
+// Default route (root) serves Index/Login page
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/index.html'));
 });
 
-const server = app.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-});
+// --- Server Startup ---
+const db = require('./db');
 
-server.on('error', (err) => {
-    console.error('Server error:', err);
-});
+db.getConnection()
+    .then((connection) => {
+        connection.release();
+        app.listen(PORT, () => {
+            console.log(`Server running at http://localhost:${PORT}`);
+        });
+    })
+    .catch((err) => {
+        console.error('❌ Database connection failed:', err.message);
+        process.exit(1);
+    });
 
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err);

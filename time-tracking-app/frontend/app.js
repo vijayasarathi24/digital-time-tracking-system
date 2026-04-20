@@ -46,7 +46,9 @@ class TimerManager {
 const timerManager = new TimerManager();
 
 // --- Configuration & State ---
-const API_BASE = 'https://digital-time-tracking-system.onrender.com';
+const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
+    ? 'http://localhost:3001' 
+    : ''; // Empty string means same-origin (for single-domain) or we can specify the Render URL here later.
 
 // --- Theme Management (Execute immediately to prevent flicker) ---
 if (localStorage.getItem('theme') === 'dark' ||
@@ -67,7 +69,11 @@ function toggleTheme() {
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
     const path = window.location.pathname;
-    const isAuthPage = path.includes('index.html') || path.includes('register') || path === '/';
+    const isAuthPage = path.includes('index.html') || 
+                       path.includes('register.html') || 
+                       path === '/' || 
+                       path === '/login' || 
+                       path === '/register';
 
     if (isAuthPage) {
         setupAuthPageListeners();
@@ -80,7 +86,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         setupEventListeners();
 
         // Polling for sync (on user dashboard only)
-        if (path === '/user') {
+        if (path === '/dashboard' || path.includes('user-dashboard.html')) {
             setInterval(syncState, 30000);
         }
     } catch (err) {
@@ -92,7 +98,7 @@ async function checkAuth() {
     try {
         const res = await fetch(`${API_BASE}/auth/session`);
         if (!res.ok) {
-            window.location.href = '/index.html';
+            window.location.href = '/';
             return;
         }
         const data = await res.json();
@@ -100,21 +106,21 @@ async function checkAuth() {
         if (userNameElem) userNameElem.textContent = data.user.name || data.user.username;
     } catch (err) {
         console.error("Auth Check Failed:", err);
-        window.location.href = '/index.html';
+        window.location.href = '/';
     }
 }
 
 async function initDashboard() {
     const path = window.location.pathname;
-    if (path.includes('/admin-dashboard.html')) {
-        await Promise.all([
+    if (path.includes('admin-dashboard.html') || path === '/administrator') {
+        await Promise.allSettled([
             loadDashboardStats(),
             loadUsers(),
             loadAdminReports('day')
         ]);
         setupAdminUIHandlers();
-    } else if (path === '/user-dashboard.html') {
-        await Promise.all([
+    } else if (path.includes('user-dashboard.html') || path === '/dashboard') {
+        await Promise.allSettled([
             syncState(),
             loadRecentActivities(),
             loadTodayAverage()
@@ -379,7 +385,13 @@ async function loadTodayAverage() {
     try {
         const data = await apiCall('/user/today-average');
         const avgElem = document.getElementById('todayAvg');
-        if (avgElem) avgElem.textContent = data.formatted;
+        if (avgElem) {
+            const totalSeconds = data.totalSeconds || 0;
+            const h = Math.floor(totalSeconds / 3600);
+            const m = Math.floor((totalSeconds % 3600) / 60);
+            const formatted = `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`;
+            avgElem.textContent = formatted;
+        }
     } catch (err) {
         console.error(err);
     }
@@ -496,9 +508,9 @@ function setupAuthPageListeners() {
             const data = await apiCall('/auth/user/login', 'POST', { username, password });
             submitBtn.innerHTML = '<i class="bx bx-check mr-2"></i>Login Successful';
             if (data.role === 'admin') {
-                window.location.href = '/admin-dashboard.html';
+                window.location.href = '/administrator';
             } else {
-                window.location.href = '/user-dashboard.html';
+                window.location.href = '/dashboard';
             }
         } catch (err) {
             if (errorMsg) {
@@ -526,7 +538,7 @@ function setupAuthPageListeners() {
             }
             const data = await apiCall('/auth/admin/login', 'POST', { username, password });
             submitBtn.innerHTML = '<i class="bx bx-check mr-2"></i>Access Granted';
-            window.location.href = '/admin-dashboard.html';
+            window.location.href = '/administrator';
         } catch (err) {
             if (errorMsg) {
                 errorMsg.textContent = err.message || "Login failed";
@@ -585,7 +597,7 @@ function setupAuthPageListeners() {
         try {
             await apiCall('/auth/register', 'POST', { name, email, username, password });
             alert('Registration successful! Please login.');
-            window.location.href = '/index.html';
+            window.location.href = '/';
         } catch (err) {
             if (errorMsg) {
                 errorMsg.textContent = err.message;
@@ -619,9 +631,9 @@ function setupEventListeners() {
 async function logout() {
     try {
         await apiCall('/auth/logout', 'POST');
-        window.location.href = '/index.html';
+        window.location.href = '/login';
     } catch (err) {
-        window.location.href = '/index.html';
+        window.location.href = '/';
     }
 }
 

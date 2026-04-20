@@ -93,7 +93,13 @@ exports.resetUserPassword = async (req, res) => {
 
 exports.changePassword = async (req, res) => {
     const { currentPassword, newPassword, confirmPassword } = req.body;
-    const adminId = req.session.user.id;
+    const sessionUser = req.session.user;
+
+    if (!sessionUser || sessionUser.role !== 'admin') {
+        return res.status(403).json({ error: 'Unauthorized access' });
+    }
+
+    const adminId = sessionUser.id;
     try {
         // Validate new password length
         if (newPassword.length < 6) {
@@ -106,6 +112,10 @@ exports.changePassword = async (req, res) => {
         }
 
         const [admins] = await db.execute('SELECT * FROM admins WHERE id = ?', [adminId]);
+        if (admins.length === 0) {
+            return res.status(404).json({ error: 'Admin record not found. Please log in again.' });
+        }
+
         const admin = admins[0];
         const match = await bcrypt.compare(currentPassword, admin.password_hash);
         if (!match) return res.status(401).json({ error: 'Incorrect current password' });
@@ -114,8 +124,8 @@ exports.changePassword = async (req, res) => {
         await db.execute('UPDATE admins SET password_hash = ? WHERE id = ?', [hash, adminId]);
         res.json({ message: 'Password changed successfully' });
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Server error' });
+        console.error("Change Password Error:", err);
+        res.status(500).json({ error: 'Internal server error while updating password' });
     }
 };
 

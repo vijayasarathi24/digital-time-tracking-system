@@ -297,14 +297,21 @@ exports.getTodayAverage = async (req, res) => {
     const userId = req.session.user.id;
     const column = req.session.user.role === 'admin' ? 'admin_id' : 'user_id';
     try {
+        // Run auto-stop check first to ensure consistency
+        await checkAndAutoStopTimers(userId, column);
+
+        // Fetch sum of total seconds for today, including "live" time for currently running sessions
         const [resArr] = await db.query(
-            `SELECT AVG(GREATEST(0, total_seconds)) as avgS FROM time_logs WHERE ${column} = ? AND log_date = CURDATE() AND end_time IS NOT NULL`, 
+            `SELECT SUM(total_seconds + CASE WHEN end_time IS NULL AND start_time IS NOT NULL THEN TIMESTAMPDIFF(SECOND, start_time, NOW()) ELSE 0 END) as totalS 
+             FROM time_logs 
+             WHERE ${column} = ? AND log_date = CURDATE()`, 
             [userId]
         );
-        const avg = Math.round(resArr[0].avgS || 0);
-        res.json({ avgSeconds: avg, formatted: formatTime(avg) });
+        const total = Math.max(0, Math.round(resArr[0].totalS || 0));
+        res.json({ totalSeconds: total, formatted: formatTime(total) });
     } catch (err) {
-        res.status(500).json({ error: 'Error' });
+        console.error("Today Average Error:", err);
+        res.status(500).json({ error: 'Error calculating today\'s total time' });
     }
 };
 
