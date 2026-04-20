@@ -2,8 +2,7 @@ services:
   # 1. MySQL Database (Private Service)
   - type: pserv
     name: mysql-db
-    runtime: docker
-    dockerfile: Dockerfile.mysql # We can also use 'image'
+    runtime: image
     image: mysql:8.0
     disk:
       name: mysql-data
@@ -15,7 +14,7 @@ services:
       - key: MYSQL_USER
         value: nsv_user
       - key: MYSQL_PASSWORD
-        generateValue: true # Render will generate a secure password
+        generateValue: true
       - key: MYSQL_ROOT_PASSWORD
         generateValue: true
 
@@ -49,4 +48,4 @@ services:
       - key: SESSION_SECRET
         generateValue: true
       - key: FRONTEND_URL
-        fromContext: origin
+        value: https://digital-time-tracking-system.onrender.com
