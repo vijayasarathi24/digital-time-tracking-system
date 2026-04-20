@@ -1,0 +1,52 @@
+services:
+  # 1. MySQL Database (Private Service)
+  - type: pserv
+    name: mysql-db
+    runtime: docker
+    dockerfile: Dockerfile.mysql # We can also use 'image'
+    image: mysql:8.0
+    disk:
+      name: mysql-data
+      mountPath: /var/lib/mysql
+      sizeGB: 1
+    envVars:
+      - key: MYSQL_DATABASE
+        value: time_tracking_db
+      - key: MYSQL_USER
+        value: nsv_user
+      - key: MYSQL_PASSWORD
+        generateValue: true # Render will generate a secure password
+      - key: MYSQL_ROOT_PASSWORD
+        generateValue: true
+
+  # 2. Node.js Backend (Web Service)
+  - type: web
+    name: time-tracking-backend
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 10000
+      - key: DB_HOST
+        fromService:
+          type: pserv
+          name: mysql-db
+          property: host
+      - key: DB_PORT
+        value: 3306
+      - key: DB_NAME
+        value: time_tracking_db
+      - key: DB_USER
+        value: nsv_user
+      - key: DB_PASSWORD
+        fromService:
+          type: pserv
+          name: mysql-db
+          envVarKey: MYSQL_PASSWORD
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: FRONTEND_URL
+        fromContext: origin
