@@ -3,20 +3,21 @@ services:
   - type: pserv
     name: mysql-db
     runtime: image
-    image: mysql:8.0
+    image:
+      url: mysql:8.0
     disk:
       name: mysql-data
       mountPath: /var/lib/mysql
-      sizeGB: 1
+      sizeGB: 10
     envVars:
       - key: MYSQL_DATABASE
         value: time_tracking_db
       - key: MYSQL_USER
         value: nsv_user
       - key: MYSQL_PASSWORD
-        generateValue: true
+        generate: password
       - key: MYSQL_ROOT_PASSWORD
-        generateValue: true
+        generate: password
 
   # 2. Node.js Backend (Web Service)
   - type: web
@@ -46,6 +47,6 @@ services:
           name: mysql-db
           envVarKey: MYSQL_PASSWORD
       - key: SESSION_SECRET
-        generateValue: true
+        generate: password
       - key: FRONTEND_URL
         value: https://digital-time-tracking-system.onrender.com
