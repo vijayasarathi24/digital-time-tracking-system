@@ -96,7 +96,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 async function checkAuth() {
     try {
-        const res = await fetch(`${API_BASE}/auth/session`);
+        const res = await fetch(`${API_BASE}/auth/session`, {
+            credentials: 'include'
+        });
         if (!res.ok) {
             window.location.href = '/login';
             return;
