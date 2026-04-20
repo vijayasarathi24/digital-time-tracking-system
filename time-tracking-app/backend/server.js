@@ -1,28 +1,38 @@
-const express = require('express');
-const session = require('express-session');
-const cors = require('cors');
 const path = require('path');
 require('dotenv').config({ path: path.join(__dirname, '../.env') });
+const express = require('express');
+const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
+const cors = require('cors');
+const db = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.set('trust proxy', 1);
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ 
+    origin: process.env.FRONTEND_URL || 'http://localhost:3000', 
+    credentials: true 
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Session Setup
+const sessionStore = new MySQLStore({}, db);
+
 app.use(session({
-    secret: process.env.SESSION_SECRET,
+    key: 'session_cookie_name',
+    secret: process.env.SESSION_SECRET || 'your-default-secret',
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
     cookie: { 
         secure: process.env.NODE_ENV === 'production',
         httpOnly: true,
-        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax'
+        sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+        maxAge: 1000 * 60 * 60 * 24 // 1 day
     }
 }));
 
@@ -72,7 +82,6 @@ app.get('/', (req, res) => {
 });
 
 // --- Server Startup ---
-const db = require('./db');
 
 db.getConnection()
     .then((connection) => {
@@ -82,7 +91,9 @@ db.getConnection()
         });
     })
     .catch((err) => {
-        console.error('❌ Database connection failed:', err.message);
+        console.error('❌ Database connection failed!');
+        console.error('Error details:', err.message);
+        console.error('Check your environment variables: DB_HOST, DB_USER, DB_PASSWORD, DB_NAME, DB_PORT');
         process.exit(1);
     });
 
