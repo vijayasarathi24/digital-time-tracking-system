@@ -8,7 +8,21 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors({ origin: true, credentials: true }));
+const allowedOrigins = ['http://localhost:3001'];
+if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL);
+}
+
+app.use(cors({
+    origin: (origin, callback) => {
+        if (!origin || allowedOrigins.includes(origin)) {
+            callback(null, true);
+        } else {
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
@@ -56,5 +70,5 @@ db.getConnection()
     })
     .catch((err) => {
         console.error('Database connection failed:', err.message);
-        process.exit(1);
+        console.log('Server continuing without database...');
     });
