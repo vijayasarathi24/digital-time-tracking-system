@@ -9,10 +9,7 @@ const PORT = process.env.PORT || 3000;
 
 // Middleware
 app.set('trust proxy', 1);
-app.use(cors({ 
-    origin: process.env.NODE_ENV === 'production' ? true : 'http://localhost:3000', 
-    credentials: true 
-}));
+app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, '../frontend')));
@@ -34,9 +31,14 @@ app.use('/auth', require('./routes/auth.routes'));
 app.use('/admin', require('./routes/admin.routes'));
 app.use('/user', require('./routes/user.routes'));
 
+// Health Check for Render
+app.get('/health', (req, res) => {
+    res.status(200).send('OK');
+});
+
 // --- Clean URL Routing ---
 app.get('/login', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+    res.sendFile(path.join(__dirname, '../frontend/login.html'));
 });
 
 app.get('/register', (req, res) => {
@@ -64,9 +66,9 @@ app.use((req, res, next) => {
     next();
 });
 
-// Default route (root) serves Index/Login page
+// Default route (root) serves Login page
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '../frontend/index.html'));
+    res.sendFile(path.join(__dirname, '../frontend/login.html'));
 });
 
 // --- Server Startup ---

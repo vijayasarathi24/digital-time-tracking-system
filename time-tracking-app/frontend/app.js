@@ -46,9 +46,7 @@ class TimerManager {
 const timerManager = new TimerManager();
 
 // --- Configuration & State ---
-const API_BASE = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
-    ? 'http://localhost:3001' 
-    : ''; // Empty string means same-origin (for single-domain) or we can specify the Render URL here later.
+const API_BASE = '';
 
 // --- Theme Management (Execute immediately to prevent flicker) ---
 if (localStorage.getItem('theme') === 'dark' ||
@@ -69,7 +67,7 @@ function toggleTheme() {
 // --- Initialization ---
 document.addEventListener('DOMContentLoaded', async () => {
     const path = window.location.pathname;
-    const isAuthPage = path.includes('index.html') || 
+    const isAuthPage = path.includes('login.html') || 
                        path.includes('register.html') || 
                        path === '/' || 
                        path === '/login' || 
@@ -98,7 +96,7 @@ async function checkAuth() {
     try {
         const res = await fetch(`${API_BASE}/auth/session`);
         if (!res.ok) {
-            window.location.href = '/';
+            window.location.href = '/login';
             return;
         }
         const data = await res.json();
@@ -106,7 +104,7 @@ async function checkAuth() {
         if (userNameElem) userNameElem.textContent = data.user.name || data.user.username;
     } catch (err) {
         console.error("Auth Check Failed:", err);
-        window.location.href = '/';
+        window.location.href = '/login';
     }
 }
 
@@ -597,7 +595,7 @@ function setupAuthPageListeners() {
         try {
             await apiCall('/auth/register', 'POST', { name, email, username, password });
             alert('Registration successful! Please login.');
-            window.location.href = '/';
+            window.location.href = '/login';
         } catch (err) {
             if (errorMsg) {
                 errorMsg.textContent = err.message;
@@ -633,7 +631,7 @@ async function logout() {
         await apiCall('/auth/logout', 'POST');
         window.location.href = '/login';
     } catch (err) {
-        window.location.href = '/';
+        window.location.href = '/login';
     }
 }
 

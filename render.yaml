@@ -1,7 +1,7 @@
 services:
   - type: web
     name: time-tracking-api
-    env: node
+    runtime: node
     plan: free
     buildCommand: npm install
     startCommand: npm start
@@ -20,3 +20,6 @@ services:
         value: "3306"
       - key: SESSION_SECRET
         generateValue: true
+      - key: PORT
+        value: "3000"
+    healthCheckPath: /health
