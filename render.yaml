@@ -15,9 +15,9 @@ services:
       - key: MYSQL_USER
         value: nsv_user
       - key: MYSQL_PASSWORD
-        generate: password
+        generateValue: true
       - key: MYSQL_ROOT_PASSWORD
-        generate: password
+        generateValue: true
 
   # 2. Node.js Backend (Web Service)
   - type: web
@@ -47,6 +47,6 @@ services:
           name: mysql-db
           envVarKey: MYSQL_PASSWORD
       - key: SESSION_SECRET
-        generate: password
+        generateValue: true
       - key: FRONTEND_URL
         value: https://digital-time-tracking-system.onrender.com
