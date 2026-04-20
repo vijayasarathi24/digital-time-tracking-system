@@ -8,14 +8,20 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-const allowedOrigins = ['http://localhost:3001'];
+const isProduction = process.env.NODE_ENV === 'production';
+const allowedOrigins = [
+    'http://localhost:3001',
+    'https://digital-time-tracking-system.onrender.com'
+];
+
 if (process.env.FRONTEND_URL) {
     allowedOrigins.push(process.env.FRONTEND_URL);
 }
 
 app.use(cors({
     origin: (origin, callback) => {
-        if (!origin || allowedOrigins.includes(origin)) {
+        // Allow requests with no origin (like mobile apps, curl, or same-origin)
+        if (!origin || allowedOrigins.includes(origin) || (!isProduction && origin.includes('localhost'))) {
             callback(null, true);
         } else {
             callback(new Error('Not allowed by CORS'));
@@ -30,15 +36,18 @@ app.use(express.urlencoded({ extended: true }));
 const FRONTEND_PATH = path.join(__dirname, '../frontend');
 app.use(express.static(FRONTEND_PATH));
 
-// Session Setup (Local Memory Store for simplicity)
+// Session Setup
 app.use(session({
     secret: process.env.SESSION_SECRET || 'secret-key',
     resave: false,
     saveUninitialized: false,
-    cookie: { 
-        secure: false, // Localhost is not https
-        httpOnly: true
-    }
+    cookie: {
+        secure: isProduction, // Secure in production (HTTPS)
+        sameSite: isProduction ? 'none' : 'lax', // Needed for cross-site cookies in prod
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    },
+    proxy: isProduction // Required for secure cookies behind a proxy like Render
 }));
 
 // API Routes
@@ -61,14 +70,21 @@ app.get('/', (req, res) => {
 // Server Startup
 const db = require('./db');
 
+const startServer = () => {
+    app.listen(PORT, () => {
+        console.log(`Server running in ${process.env.NODE_ENV || 'development'} mode`);
+        console.log(`Local Access: http://localhost:${PORT}`);
+    });
+};
+
 db.getConnection()
     .then((connection) => {
         connection.release();
-        app.listen(PORT, () => {
-            console.log(`Server running at http://localhost:${PORT}`);
-        });
+        console.log('Database connected successfully.');
+        startServer();
     })
     .catch((err) => {
         console.error('Database connection failed:', err.message);
-        console.log('Server continuing without database...');
+        console.log('Starting server in offline mode (without database)...');
+        startServer();
     });
